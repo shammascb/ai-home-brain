@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../automations/data/automation_routine_store.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../devices/domain/device_control_service.dart';
 import '../../devices/domain/door_unlock_authenticator.dart';
@@ -21,6 +22,7 @@ class AuthGate extends StatelessWidget {
     required this.doorUnlockAuthenticator,
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
+    required this.routineStore,
     super.key,
   });
 
@@ -32,6 +34,7 @@ class AuthGate extends StatelessWidget {
   final DoorUnlockAuthenticator doorUnlockAuthenticator;
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
+  final AutomationRoutineStore routineStore;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +77,7 @@ class AuthGate extends StatelessWidget {
           doorUnlockAuthenticator: doorUnlockAuthenticator,
           voiceRecognitionService: voiceRecognitionService,
           voiceCommandInterpreter: voiceCommandInterpreter,
+          routineStore: routineStore,
           accountAction: () => showDialog<void>(
             context: context,
             builder: (context) => ProfileDialog(
@@ -96,6 +100,7 @@ class _AuthenticatedHome extends StatefulWidget {
     required this.doorUnlockAuthenticator,
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
+    required this.routineStore,
     required this.accountAction,
     required this.accountLabel,
   });
@@ -106,6 +111,7 @@ class _AuthenticatedHome extends StatefulWidget {
   final DoorUnlockAuthenticator doorUnlockAuthenticator;
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
+  final AutomationRoutineStore routineStore;
   final VoidCallback accountAction;
   final String accountLabel;
 
@@ -131,6 +137,7 @@ class _AuthenticatedHomeState extends State<_AuthenticatedHome> {
       doorUnlockAuthenticator: widget.doorUnlockAuthenticator,
       voiceRecognitionService: widget.voiceRecognitionService,
       voiceCommandInterpreter: widget.voiceCommandInterpreter,
+      routineStore: widget.routineStore,
       accountAction: widget.accountAction,
       accountLabel: widget.accountLabel,
     );

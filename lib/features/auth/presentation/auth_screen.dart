@@ -37,6 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _confirmPasswordController = TextEditingController();
   _AuthMode _mode = _AuthMode.signIn;
   bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
   bool _passwordVisible = false;
   String? _notice;
   bool _noticeIsError = false;
@@ -65,6 +66,41 @@ class _AuthScreenState extends State<AuthScreen> {
       return 'Use at least 8 characters.';
     }
     return null;
+  }
+
+  Future<void> _signInWithGoogle() async {
+    final authService = widget.authService;
+    if (authService == null) {
+      setState(() {
+        _notice = widget.backendMessage ??
+            'Authentication is unavailable until Firebase is configured.';
+        _noticeIsError = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _isGoogleSubmitting = true;
+      _notice = null;
+    });
+
+    try {
+      await authService.signInWithGoogle();
+    } on FirebaseAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _notice = authenticationErrorMessage(error);
+        _noticeIsError = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _notice = 'Google sign-in failed: $error';
+        _noticeIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _isGoogleSubmitting = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -175,6 +211,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _AuthMode.register => 'Create Account',
       _AuthMode.resetPassword => 'Reset Password',
     };
+    final busy = _isSubmitting || _isGoogleSubmitting;
 
     return Scaffold(
       backgroundColor: _authCanvas,
@@ -322,14 +359,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                             ? 'Create a secure account to access your home.'
                                             : _mode == _AuthMode.resetPassword
                                                 ? 'We’ll email you a secure password reset link.'
-                                                : 'Sign in with your email and password to continue.',
+                                                : 'Sign in with Google or your email and password to continue.',
                                         style: const TextStyle(
                                           color: _authMuted,
                                           fontSize: 12,
                                           height: 1.5,
                                         ),
                                       ),
-                                      const SizedBox(height: 22),
+                                      const SizedBox(height: 20),
                                       if (widget.authService == null) ...[
                                         _MessageCard(
                                           message: widget.backendMessage ??
@@ -337,6 +374,75 @@ class _AuthScreenState extends State<AuthScreen> {
                                           isError: true,
                                         ),
                                         const SizedBox(height: 14),
+                                      ],
+                                      if (_mode != _AuthMode.resetPassword) ...[
+                                        FilledButton.icon(
+                                          onPressed:
+                                              busy ? null : _signInWithGoogle,
+                                          style: FilledButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: _authPanel,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 14,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                          ),
+                                          icon: _isGoogleSubmitting
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: _authPanel,
+                                                  ),
+                                                )
+                                              : const Icon(
+                                                  Icons.login_rounded,
+                                                  size: 19,
+                                                ),
+                                          label: const Text(
+                                            'Continue with Google',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Divider(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.12),
+                                              ),
+                                            ),
+                                            const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                              ),
+                                              child: Text(
+                                                'or with email',
+                                                style: TextStyle(
+                                                  color: _authMuted,
+                                                  fontSize: 11,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Divider(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.12),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
                                       ],
                                       if (_notice != null) ...[
                                         _MessageCard(
@@ -502,13 +608,13 @@ class _AuthScreenState extends State<AuthScreen> {
                                                     ),
                                                   ),
                                                   const Spacer(),
-                                                  _submitButton(),
+                                                  _submitButton(busy),
                                                 ],
                                               )
                                             else
                                               SizedBox(
                                                 width: double.infinity,
-                                                child: _submitButton(),
+                                                child: _submitButton(busy),
                                               ),
                                           ],
                                         ),
@@ -569,7 +675,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _submitButton() {
+  Widget _submitButton(bool busy) {
     final label = switch (_mode) {
       _AuthMode.signIn => 'Sign in',
       _AuthMode.register => 'Create account',
@@ -577,7 +683,7 @@ class _AuthScreenState extends State<AuthScreen> {
     };
 
     return FilledButton(
-      onPressed: _isSubmitting ? null : _submit,
+      onPressed: busy ? null : _submit,
       style: FilledButton.styleFrom(
         backgroundColor: _authAccent,
         foregroundColor: Colors.white,

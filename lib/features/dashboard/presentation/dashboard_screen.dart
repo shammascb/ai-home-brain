@@ -1,9 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../../automations/data/automation_routine_store.dart';
+import '../../automations/domain/automation_routine.dart';
+import '../../automations/domain/automation_routine_executor.dart';
+import '../../automations/presentation/automations_screen.dart';
+import '../../automations/presentation/routine_dialogs.dart';
 import '../../devices/domain/device_control_exception.dart';
 import '../../devices/domain/device_control_service.dart';
 import '../../devices/domain/device_state.dart';
@@ -24,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
     required this.doorUnlockAuthenticator,
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
+    required this.routineStore,
     super.key,
   });
 
@@ -35,6 +42,7 @@ class DashboardScreen extends StatefulWidget {
   final DoorUnlockAuthenticator doorUnlockAuthenticator;
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
+  final AutomationRoutineStore routineStore;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -117,36 +125,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    final sectionKey = switch (index) {
-      2 => _scenesSectionKey,
-      _ => null,
-    };
-
     setState(() => _selectedNavigationIndex = index);
-    if (sectionKey == null) {
-      if (_dashboardScrollController.hasClients) {
-        unawaited(
-          _dashboardScrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-          ),
-        );
-      }
-      return;
-    }
-
-    final sectionContext = sectionKey.currentContext;
-    if (sectionContext != null) {
+    if (index == 0 && _dashboardScrollController.hasClients) {
       unawaited(
-        Scrollable.ensureVisible(
-          sectionContext,
-          alignment: 0.12,
+        _dashboardScrollController.animateTo(
+          0,
           duration: const Duration(milliseconds: 320),
           curve: Curves.easeOutCubic,
         ),
       );
     }
+  }
+
+  Future<void> _runRoutineFromScene(RoutineId id) async {
+    final routine = widget.routineStore.routineFor(id);
+    final report = await showRoutineExecutionDialog(
+      context: context,
+      routine: routine,
+      deviceControlService: widget.deviceControlService,
+      routineStore: widget.routineStore,
+    );
+    if (!mounted || report == null) return;
+    setState(() => _selectedMode = routine.modeChipLabel);
   }
 
   void _showDemoNotice(String message) {
@@ -176,6 +176,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<bool> _confirmWebDoorUnlock() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm Door Unlock'),
+        content: const Text(
+          'Confirm to simulate unlocking the front door.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirm unlock'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _setDoorLocked(bool isLocked) async {
     if (isLocked) {
       await _performDemoAction(
@@ -187,8 +210,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => _isAuthenticatingDoor = true);
     try {
-      final authenticated =
-          await widget.doorUnlockAuthenticator.authenticateForDoorUnlock();
+      final authenticated = kIsWeb
+          ? await _confirmWebDoorUnlock()
+          : await widget.doorUnlockAuthenticator.authenticateForDoorUnlock();
       if (!mounted) return;
       if (!authenticated) {
         _showDemoNotice(
@@ -422,39 +446,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<String> _runSleepRoutine() async {
-    setState(() => _selectedMode = 'Sleep');
-    await widget.deviceControlService.setLight(false);
-    await widget.deviceControlService.setFan(false);
-    return 'Sleep routine complete: light and fan are off; door unchanged.';
-  }
+  Future<String> _runVoiceRoutine(RoutineId id) async {
+    final routine = widget.routineStore.routineFor(id);
+    setState(() => _selectedMode = routine.modeChipLabel);
 
-  Future<String> _runMorningRoutine() async {
-    setState(() => _selectedMode = 'Morning');
-    await widget.deviceControlService.setLight(true);
-    await widget.deviceControlService.setFan(false);
-    return 'Morning routine complete: light is on, fan is off; door unchanged.';
-  }
+    final needsDoorConfirm =
+        routine.needsExplicitSafetyCheck(widget.deviceControlService.state);
+    final report = await const AutomationRoutineExecutor().execute(
+      routine: routine,
+      deviceControlService: widget.deviceControlService,
+      doorSafetyConfirmed: !needsDoorConfirm,
+    );
+    widget.routineStore.recordExecutionReport(report);
 
-  Future<String> _runAwayRoutine() async {
-    setState(() => _selectedMode = 'Away');
-    await widget.deviceControlService.setLight(false);
-    await widget.deviceControlService.setFan(false);
-
-    final state = widget.deviceControlService.state;
-    if (state.doorOpen) {
-      return 'Away routine complete: light and fan are off. The door is open, '
-          'so it was not locked.';
-    }
-    if (state.doorLocked) {
-      return 'Away routine complete: light and fan are off. The door was '
-          'already locked.';
+    if (needsDoorConfirm && mounted) {
+      setState(() => _awaitingVoiceDoorLockConfirmation = true);
     }
 
-    setState(() => _awaitingVoiceDoorLockConfirmation = true);
-    return 'Away routine: light and fan are off. The door is closed; confirm '
-        'if you want it locked.';
+    final summary = report.steps.map((s) => s.message).join(' ');
+    if (needsDoorConfirm) {
+      return '${routine.title}: $summary Confirm if you want the front door locked.';
+    }
+    return '${routine.title} (${report.overallStatusLabel}): $summary';
   }
+
+  Future<String> _runSleepRoutine() => _runVoiceRoutine(RoutineId.sleep);
+
+  Future<String> _runMorningRoutine() => _runVoiceRoutine(RoutineId.morning);
+
+  Future<String> _runAwayRoutine() => _runVoiceRoutine(RoutineId.away);
 
   Future<void> _runVoiceConfirmation() async {
     if (_awaitingVoiceDoorLockConfirmation) {
@@ -590,7 +610,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
-      appBar: _selectedNavigationIndex == 3
+      appBar: _selectedNavigationIndex == 2 || _selectedNavigationIndex == 3
           ? null
           : AppBar(
               actions: [
@@ -622,34 +642,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onOpenLivingRoom: _openLivingRoomControls,
               onOpenBedroom: _openBedroomDetails,
             )
-          : _selectedNavigationIndex == 1
-              ? _DevicesPage(
+          : _selectedNavigationIndex == 2
+              ? AutomationsScreen(
+                  routineStore: widget.routineStore,
                   deviceControlService: widget.deviceControlService,
-                  selectedRoom: _selectedDeviceRoom,
-                  onRoomSelected: (room) =>
-                      setState(() => _selectedDeviceRoom = room),
-                  isAuthenticatingDoor: _isAuthenticatingDoor,
-                  onLightChanged: (isOn) => _performDemoAction(
-                    isOn ? 'Light ON' : 'Light OFF',
-                    () => widget.deviceControlService.setLight(isOn),
-                  ),
-                  onFanChanged: (isOn) => _performDemoAction(
-                    isOn ? 'Fan ON' : 'Fan OFF',
-                    () => widget.deviceControlService.setFan(isOn),
-                  ),
-                  onFanSpeedChanged: (speed) => _performDemoAction(
-                    'Fan speed',
-                    () => widget.deviceControlService.setFanSpeed(speed),
-                  ),
-                  onDoorLockedChanged: _setDoorLocked,
-                  onDoorOpenChanged: (isOpen) => _performDemoAction(
-                    'Door sensor',
-                    () => widget.deviceControlService.setDoorOpen(isOpen),
-                  ),
-                  onBedroomPressed: _openBedroomDetails,
+                  activeModeLabel: _selectedMode,
+                  onModeActivated: (mode) =>
+                      setState(() => _selectedMode = mode),
+                  onBackToHome: () => _selectNavigation(0),
                 )
-              : LayoutBuilder(
-                  builder: (context, constraints) {
+              : _selectedNavigationIndex == 1
+                  ? _DevicesPage(
+                      deviceControlService: widget.deviceControlService,
+                      selectedRoom: _selectedDeviceRoom,
+                      onRoomSelected: (room) =>
+                          setState(() => _selectedDeviceRoom = room),
+                      isAuthenticatingDoor: _isAuthenticatingDoor,
+                      onLightChanged: (isOn) => _performDemoAction(
+                        isOn ? 'Light ON' : 'Light OFF',
+                        () => widget.deviceControlService.setLight(isOn),
+                      ),
+                      onFanChanged: (isOn) => _performDemoAction(
+                        isOn ? 'Fan ON' : 'Fan OFF',
+                        () => widget.deviceControlService.setFan(isOn),
+                      ),
+                      onFanSpeedChanged: (speed) => _performDemoAction(
+                        'Fan speed',
+                        () => widget.deviceControlService.setFanSpeed(speed),
+                      ),
+                      onDoorLockedChanged: _setDoorLocked,
+                      onDoorOpenChanged: (isOpen) => _performDemoAction(
+                        'Door sensor',
+                        () => widget.deviceControlService.setDoorOpen(isOpen),
+                      ),
+                      onBedroomPressed: _openBedroomDetails,
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
                     final horizontalPadding =
                         constraints.maxWidth >= 700 ? 32.0 : 20.0;
                     final contentWidth =
@@ -721,8 +750,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   _AutomationModes(
                                     selectedMode: _selectedMode,
                                     onSelected: (mode) {
-                                      setState(() => _selectedMode = mode);
-                                      _showDemoNotice('$mode mode selected.');
+                                      switch (mode) {
+                                        case 'Sleep':
+                                          unawaited(
+                                            _runRoutineFromScene(
+                                              RoutineId.sleep,
+                                            ),
+                                          );
+                                        case 'Morning':
+                                          unawaited(
+                                            _runRoutineFromScene(
+                                              RoutineId.morning,
+                                            ),
+                                          );
+                                        case 'Away':
+                                          unawaited(
+                                            _runRoutineFromScene(
+                                              RoutineId.away,
+                                            ),
+                                          );
+                                        default:
+                                          setState(() => _selectedMode = mode);
+                                          _showDemoNotice(
+                                            '$mode mode selected.',
+                                          );
+                                      }
                                     },
                                   ),
                                 ],
@@ -1172,6 +1224,7 @@ class _DeviceGrid extends StatelessWidget {
         ),
       ),
     ];
+
     final visibleCards = roomFilter == null
         ? cards
         : cards
@@ -1185,13 +1238,24 @@ class _DeviceGrid extends StatelessWidget {
       builder: (context, constraints) {
         final columns = singleColumn
             ? 1
-            : constraints.maxWidth >= 760
+            : constraints.maxWidth >= 700
                 ? 3
-                : constraints.maxWidth >= 320
+                : constraints.maxWidth >= 460
                     ? 2
                     : 1;
+        if (columns == 1) {
+          return Column(
+            children: [
+              for (var i = 0; i < visibleCards.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                visibleCards[i],
+              ],
+            ],
+          );
+        }
+
         const spacing = 12.0;
-        final cardWidth =
+        final itemWidth =
             (constraints.maxWidth - spacing * (columns - 1)) / columns;
 
         return Wrap(
@@ -1199,7 +1263,7 @@ class _DeviceGrid extends StatelessWidget {
           runSpacing: spacing,
           children: [
             for (final card in visibleCards)
-              SizedBox(width: cardWidth, child: card),
+              SizedBox(width: itemWidth, child: card),
           ],
         );
       },
@@ -1235,121 +1299,111 @@ class _DeviceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isActive = status.startsWith('ON') || status.startsWith('Locked');
-    final asset = imageAsset;
 
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (imageAsset != null)
+            SizedBox(
+              height: 132,
+              width: double.infinity,
+              child: Image.asset(imageAsset!, fit: BoxFit.cover),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: asset == null
-                      ? Container(
-                          width: 64,
-                          height: 52,
-                          color: (isActive
-                                  ? colorScheme.primary
-                                  : colorScheme.onSurfaceVariant)
-                              .withValues(alpha: 0.12),
-                          child: Icon(
-                            icon,
-                            color: isActive
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant,
-                            size: 24,
-                          ),
-                        )
-                      : Image.asset(
-                          asset,
-                          key: ValueKey('device-image-$location'),
-                          width: 64,
-                          height: 52,
-                          fit: BoxFit.cover,
-                          semanticLabel: '$location photo',
-                        ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        location,
-                        key: ValueKey('device-location-$location'),
+                      child: Icon(icon, color: colorScheme.primary, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            location,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (onMorePressed == null)
+                      Icon(
+                        Icons.more_horiz_rounded,
+                        color: colorScheme.onSurfaceVariant,
+                        size: 20,
+                      )
+                    else
+                      IconButton(
+                        tooltip: moreTooltip,
+                        visualDensity: VisualDensity.compact,
+                        constraints:
+                            const BoxConstraints.tightFor(width: 28, height: 28),
+                        padding: EdgeInsets.zero,
+                        onPressed: onMorePressed,
+                        icon: const Icon(Icons.more_horiz_rounded, size: 19),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        status,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
                             ),
                       ),
-                    ],
-                  ),
-                ),
-                if (onMorePressed == null)
-                  Icon(
-                    Icons.more_horiz_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                    size: 20,
-                  )
-                else
-                  IconButton(
-                    tooltip: moreTooltip,
-                    visualDensity: VisualDensity.compact,
-                    constraints:
-                        const BoxConstraints.tightFor(width: 28, height: 28),
-                    padding: EdgeInsets.zero,
-                    onPressed: onMorePressed,
-                    icon: const Icon(Icons.more_horiz_rounded, size: 19),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-                control,
-              ],
-            ),
-            if (extra != null) ...[
-              const SizedBox(height: 4),
-              DefaultTextStyle(
-                style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                      color: colorScheme.onSurfaceVariant,
                     ),
-                child: extra!,
-              ),
-            ],
-            if (action != null) ...[
-              const SizedBox(height: 2),
-              action!,
-            ],
-          ],
-        ),
+                    control,
+                  ],
+                ),
+                if (extra != null) ...[
+                  const SizedBox(height: 4),
+                  DefaultTextStyle(
+                    style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                    child: extra!,
+                  ),
+                ],
+                if (action != null) ...[
+                  const SizedBox(height: 2),
+                  action!,
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

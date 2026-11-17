@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
+
 abstract interface class VoiceRecognitionService {
   Future<bool> initialize({
-    required void Function(String status) onStatus,
-    required void Function(String message) onError,
+    required ValueChanged<String> onStatus,
+    required ValueChanged<String> onError,
   });
 
   Future<void> listen({

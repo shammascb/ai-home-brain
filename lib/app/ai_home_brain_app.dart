@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../features/auth/data/firebase_auth_service.dart';
 import '../features/auth/presentation/auth_gate.dart';
+import '../features/automations/data/automation_routine_store.dart';
 import '../features/devices/data/local_device_unlock_authenticator.dart';
 import '../features/devices/data/simulated_device_control_service.dart';
 import '../features/devices/domain/device_control_service.dart';
@@ -19,6 +20,7 @@ class AiHomeBrainApp extends StatefulWidget {
     this.doorUnlockAuthenticator,
     this.voiceRecognitionService,
     this.voiceCommandInterpreter,
+    this.routineStore,
     super.key,
   });
 
@@ -28,6 +30,7 @@ class AiHomeBrainApp extends StatefulWidget {
   final DoorUnlockAuthenticator? doorUnlockAuthenticator;
   final VoiceRecognitionService? voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
+  final AutomationRoutineStore? routineStore;
 
   @override
   State<AiHomeBrainApp> createState() => _AiHomeBrainAppState();
@@ -38,6 +41,7 @@ class _AiHomeBrainAppState extends State<AiHomeBrainApp> {
   late final DeviceControlService _deviceControlService;
   late final DoorUnlockAuthenticator _doorUnlockAuthenticator;
   late final VoiceRecognitionService _voiceRecognitionService;
+  late final AutomationRoutineStore _routineStore;
 
   @override
   void initState() {
@@ -48,11 +52,13 @@ class _AiHomeBrainAppState extends State<AiHomeBrainApp> {
         widget.doorUnlockAuthenticator ?? LocalDeviceUnlockAuthenticator();
     _voiceRecognitionService =
         widget.voiceRecognitionService ?? PhoneVoiceRecognitionService();
+    _routineStore = widget.routineStore ?? AutomationRoutineStore();
   }
 
   @override
   void dispose() {
     if (widget.deviceControlService == null) _deviceControlService.dispose();
+    if (widget.routineStore == null) _routineStore.dispose();
     super.dispose();
   }
 
@@ -78,6 +84,7 @@ class _AiHomeBrainAppState extends State<AiHomeBrainApp> {
         doorUnlockAuthenticator: _doorUnlockAuthenticator,
         voiceRecognitionService: _voiceRecognitionService,
         voiceCommandInterpreter: widget.voiceCommandInterpreter,
+        routineStore: _routineStore,
         isDarkMode: _themeMode == ThemeMode.dark,
         onThemeToggle: _toggleTheme,
       ),

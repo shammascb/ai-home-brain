@@ -1,0 +1,208 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated smart home member profile stored strictly under the owner's UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the home member.",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address of the home member (private PII).",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the profile was last updated."
+        }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "HomeState": {
+      "title": "HomeState",
+      "description": "Simulated smart home appliance and automation mode state for a user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the state owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "selectedMode": {
+          "type": "string",
+          "enum": ["Home", "Away", "Sleep", "Morning"],
+          "description": "Active automation scene mode.",
+          "maxLength": 20
+        },
+        "lightOn": {
+          "type": "boolean",
+          "description": "Simulated living room light power state."
+        },
+        "fanOn": {
+          "type": "boolean",
+          "description": "Simulated bedroom fan power state."
+        },
+        "fanSpeed": {
+          "type": "integer",
+          "description": "Simulated bedroom fan speed (1 to 5)."
+        },
+        "doorLocked": {
+          "type": "boolean",
+          "description": "Simulated front door lock state."
+        },
+        "doorOpen": {
+          "type": "boolean",
+          "description": "Simulated front door open/closed sensor state."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the device state was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "selectedMode",
+        "lightOn",
+        "fanOn",
+        "fanSpeed",
+        "doorLocked",
+        "doorOpen",
+        "updatedAt"
+      ]
+    },
+    "ActivityEntry": {
+      "title": "ActivityEntry",
+      "description": "Simulated home activity log entry owned by the authenticated user.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the activity owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable activity description.",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "icon": {
+          "type": "string",
+          "enum": ["light", "fan", "door", "mode", "voice"],
+          "description": "Icon category for the activity item.",
+          "maxLength": 20
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the activity occurred."
+        }
+      },
+      "required": ["ownerId", "title", "icon", "createdAt"]
+    },
+    "AutomationRoutine": {
+      "title": "AutomationRoutine",
+      "description": "User-customizable smart home automation routine configuration (Sleep, Morning, Away).",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the routine owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "routineId": {
+          "type": "string",
+          "enum": ["sleep", "morning", "away"],
+          "description": "Identifier of the automation routine.",
+          "maxLength": 20
+        },
+        "lightAction": {
+          "type": "string",
+          "enum": ["turn_on", "turn_off", "unchanged"],
+          "description": "Configured action for the living room light.",
+          "maxLength": 20
+        },
+        "fanAction": {
+          "type": "string",
+          "enum": ["turn_on", "turn_off", "unchanged"],
+          "description": "Configured action for the bedroom fan.",
+          "maxLength": 20
+        },
+        "fanSpeed": {
+          "type": "integer",
+          "description": "Target fan speed (1 to 5) when fanAction is turn_on."
+        },
+        "doorAction": {
+          "type": "string",
+          "enum": ["lock_with_safety_check", "keep_locked", "unchanged"],
+          "description": "Configured safety-checked action for the front door.",
+          "maxLength": 32
+        },
+        "requireSafetyConfirmation": {
+          "type": "boolean",
+          "description": "Whether locking an unlocked closed door requires explicit confirmation."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the routine configuration was saved."
+        }
+      },
+      "required": [
+        "ownerId",
+        "routineId",
+        "lightAction",
+        "fanAction",
+        "fanSpeed",
+        "doorAction",
+        "requireSafetyConfirmation",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profile document keyed by Firebase Auth UID."
+    },
+    "/users/{userId}/homeState/{stateId}": {
+      "schema": { "$ref": "#/entities/HomeState" },
+      "description": "Per-user simulated smart home state document (doc id 'default')."
+    },
+    "/users/{userId}/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ActivityEntry" },
+      "description": "Per-user simulated smart home recent activity log."
+    },
+    "/users/{userId}/routines/{routineId}": {
+      "schema": { "$ref": "#/entities/AutomationRoutine" },
+      "description": "Per-user customized automation routine configurations (sleep, morning, away)."
+    }
+  }
+}

@@ -1,12 +1,14 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'app/firebase_config.dart';
 import 'app/ai_home_brain_app.dart';
+import 'app/firebase_config.dart';
 import 'features/auth/data/firebase_auth_service.dart';
+import 'features/automations/data/automation_routine_store.dart';
 import 'features/voice_assistant/data/firebase_voice_command_interpreter.dart';
 import 'features/voice_assistant/domain/voice_command_interpreter.dart';
 
@@ -15,19 +17,40 @@ Future<void> main() async {
 
   FirebaseAuthService? authService;
   VoiceCommandInterpreter? voiceCommandInterpreter;
+  AutomationRoutineStore? routineStore;
   String? backendMessage;
-  if (defaultTargetPlatform != TargetPlatform.android) {
+
+  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     backendMessage = FirebaseConfig.setupMessage;
   } else {
     try {
-      await Firebase.initializeApp();
-      await FirebaseAppCheck.instance.activate(
-        providerAndroid: kDebugMode
-            ? const AndroidDebugProvider()
-            : const AndroidPlayIntegrityProvider(),
+      if (kIsWeb) {
+        await Firebase.initializeApp(options: FirebaseConfig.webOptions);
+      } else {
+        await Firebase.initializeApp();
+        await FirebaseAppCheck.instance.activate(
+          providerAndroid: kDebugMode
+              ? const AndroidDebugProvider()
+              : const AndroidPlayIntegrityProvider(),
+        );
+      }
+      final auth = FirebaseAuth.instance;
+      final firestore = FirebaseFirestore.instanceFor(
+        app: Firebase.app(),
+        databaseId: FirebaseConfig.firestoreDatabaseId,
       );
-      authService = FirebaseAuthService(FirebaseAuth.instance);
+      if (kIsWeb) {
+        firestore.settings = const Settings(
+          persistenceEnabled: false,
+          webExperimentalForceLongPolling: true,
+        );
+      }
+      authService = FirebaseAuthService(auth);
       voiceCommandInterpreter = FirebaseVoiceCommandInterpreter();
+      routineStore = AutomationRoutineStore(
+        firestore: firestore,
+        auth: auth,
+      );
     } on FirebaseException catch (error) {
       backendMessage =
           'Firebase could not start (${error.code}). Check your project '
@@ -40,6 +63,7 @@ Future<void> main() async {
       authService: authService,
       backendMessage: backendMessage,
       voiceCommandInterpreter: voiceCommandInterpreter,
+      routineStore: routineStore,
     ),
   );
 }

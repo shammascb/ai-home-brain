@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class FirebaseAuthService {
   FirebaseAuthService(this._auth);
@@ -6,6 +7,16 @@ class FirebaseAuthService {
   final FirebaseAuth _auth;
 
   Stream<User?> get userChanges => _auth.userChanges();
+
+  Future<void> signInWithGoogle() async {
+    final provider = GoogleAuthProvider()
+      ..setCustomParameters({'prompt': 'select_account'});
+    if (kIsWeb) {
+      await _auth.signInWithPopup(provider);
+    } else {
+      await _auth.signInWithProvider(provider);
+    }
+  }
 
   Future<void> signIn({
     required String email,
@@ -49,8 +60,17 @@ String authenticationErrorMessage(FirebaseAuthException error) {
     'network-request-failed' =>
       'Could not connect. Check your internet connection and try again.',
     'user-disabled' => 'This account has been disabled.',
+    'popup-blocked' =>
+      'Sign-in popup was blocked by your browser. Allow popups and try again.',
+    'popup-closed-by-user' ||
+    'cancelled-popup-request' =>
+      'Google sign-in was cancelled before completion.',
+    'unauthorized-domain' =>
+      'This domain is not authorized in Firebase Authentication settings.',
     'operation-not-allowed' =>
-      'Email and password sign-in is not enabled for this Firebase project.',
+      'Email and password sign-in is not enabled yet in Firebase Console. '
+          'Use "Continue with Google" above, or enable Email/Password under '
+          'Authentication → Sign-in method.',
     _ => 'Authentication failed (${error.code}). Please try again.',
   };
 }
