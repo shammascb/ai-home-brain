@@ -16,6 +16,9 @@ class AutomationsScreen extends StatelessWidget {
     required this.activeModeLabel,
     required this.onModeActivated,
     this.onBackToHome,
+    this.canRunAutomations = true,
+    this.onRoutineDenied,
+    this.onRoutineExecuted,
     super.key,
   });
 
@@ -24,11 +27,32 @@ class AutomationsScreen extends StatelessWidget {
   final String activeModeLabel;
   final ValueChanged<String> onModeActivated;
   final VoidCallback? onBackToHome;
+  final bool canRunAutomations;
+  final ValueChanged<AutomationRoutine>? onRoutineDenied;
+  final void Function(AutomationRoutine routine, RoutineExecutionReport report)?
+      onRoutineExecuted;
 
   Future<void> _previewAndRun(
     BuildContext context,
     AutomationRoutine routine,
   ) async {
+    if (!canRunAutomations) {
+      onRoutineDenied?.call(routine);
+      if (onRoutineDenied == null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Permission denied: your account cannot run automation routines.',
+              ),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+      return;
+    }
+
     final report = await showRoutineExecutionDialog(
       context: context,
       routine: routine,
@@ -37,6 +61,7 @@ class AutomationsScreen extends StatelessWidget {
     );
     if (report != null) {
       onModeActivated(routine.modeChipLabel);
+      onRoutineExecuted?.call(routine, report);
     }
   }
 
@@ -49,6 +74,9 @@ class AutomationsScreen extends StatelessWidget {
             routineStore: routineStore,
             deviceControlService: deviceControlService,
             onModeActivated: onModeActivated,
+            canRunAutomations: canRunAutomations,
+            onRoutineDenied: onRoutineDenied,
+            onRoutineExecuted: onRoutineExecuted,
           ),
         ),
       ),

@@ -21,6 +21,10 @@ class VoiceAssistantScreen extends StatelessWidget {
     required this.onOpenRooms,
     required this.onOpenLivingRoom,
     required this.onOpenBedroom,
+    this.accountName,
+    this.roleLabel,
+    this.voiceEnabled = true,
+    this.onOpenFamilySecurity,
     super.key,
   });
 
@@ -39,17 +43,28 @@ class VoiceAssistantScreen extends StatelessWidget {
   final VoidCallback onOpenRooms;
   final VoidCallback onOpenLivingRoom;
   final VoidCallback onOpenBedroom;
+  final String? accountName;
+  final String? roleLabel;
+  final bool voiceEnabled;
+  final VoidCallback? onOpenFamilySecurity;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final status = isListening
-        ? 'Listening…'
-        : isInterpreting
-            ? 'Understanding your request…'
-            : isExecuting
-                ? 'Working on it…'
-                : 'Tap the microphone to speak';
+    final status = !voiceEnabled
+        ? 'Voice commands disabled for this account'
+        : isListening
+            ? 'Listening…'
+            : isInterpreting
+                ? 'Understanding your request…'
+                : isExecuting
+                    ? 'Working on it…'
+                    : 'Tap the microphone to speak';
+    final accountText = accountName == null || accountName!.trim().isEmpty
+        ? 'Signed-in account'
+        : roleLabel == null || roleLabel!.trim().isEmpty
+            ? accountName!
+            : '$accountName ($roleLabel)';
 
     return Container(
       decoration: const BoxDecoration(
@@ -68,7 +83,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                   270.0,
                   math.min(
                     math.max(160.0, constraints.maxWidth - 40),
-                    constraints.maxHeight * (compact ? 0.30 : 0.36),
+                    constraints.maxHeight * (compact ? 0.28 : 0.34),
                   ),
                 )
                 .toDouble();
@@ -92,12 +107,84 @@ class VoiceAssistantScreen extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(height: compact ? 12 : 24),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: voiceEnabled
+                                  ? Colors.white.withValues(alpha: 0.12)
+                                  : const Color(0xFFFF8A80)
+                                      .withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    voiceEnabled
+                                        ? Icons.verified_user_outlined
+                                        : Icons.mic_off_rounded,
+                                    size: 16,
+                                    color: voiceEnabled
+                                        ? const Color(0xFF73E6C7)
+                                        : const Color(0xFFFF8A80),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Account: $accountText',
+                                      style: theme.textTheme.labelMedium?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  if (onOpenFamilySecurity != null)
+                                    TextButton(
+                                      onPressed: onOpenFamilySecurity,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFF73E6C7),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                      ),
+                                      child: const Text('Security'),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                voiceEnabled
+                                    ? 'Commands are logged under your signed-in account. '
+                                        'Speaker/voice-print identity verification is NOT '
+                                        'implemented; door unlock via voice is disabled.'
+                                    : 'A household admin disabled voice commands for this '
+                                        'account. You can still review permissions in Security.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.white70,
+                                  fontSize: 11.5,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: compact ? 10 : 18),
                         _VoiceOrb(
                           isActive: isListening || isInterpreting,
                           size: orbSize,
                         ),
-                        SizedBox(height: compact ? 14 : 22),
+                        SizedBox(height: compact ? 12 : 20),
                         Text(
                           status,
                           textAlign: TextAlign.center,
@@ -237,16 +324,26 @@ class VoiceAssistantScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       IconButton.filled(
-                        tooltip:
-                            isListening ? 'Stop listening' : 'Start listening',
-                        onPressed: isExecuting ? null : onListenPressed,
+                        tooltip: !voiceEnabled
+                            ? 'Voice commands disabled for this account'
+                            : isListening
+                                ? 'Stop listening'
+                                : 'Start listening',
+                        onPressed:
+                            isExecuting || !voiceEnabled ? null : onListenPressed,
                         style: IconButton.styleFrom(
                           backgroundColor: const Color(0xFF73E6C7),
                           foregroundColor: const Color(0xFF06201A),
+                          disabledBackgroundColor: Colors.white12,
+                          disabledForegroundColor: Colors.white38,
                           fixedSize: const Size(64, 64),
                         ),
                         icon: Icon(
-                          isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                          !voiceEnabled
+                              ? Icons.mic_off_rounded
+                              : isListening
+                                  ? Icons.stop_rounded
+                                  : Icons.mic_rounded,
                           size: 28,
                         ),
                       ),

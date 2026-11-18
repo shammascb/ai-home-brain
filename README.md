@@ -4,7 +4,7 @@ AI Home Brain is a Flutter smart-home app supporting both Web and mobile with Fi
 
 ## Authentication
 
-- **Web & Mobile Firebase Setup**: Connected to the provisioned Firebase project (`ai-home-brain-6df82`) via `FirebaseConfig.webOptions` in `lib/app/firebase_config.dart`.
+- **Web & Mobile Firebase Setup**: Connected to the provisioned Firebase project (`shining-talent-pq7xb`) via `firebase-applet-config.json` and `FirebaseConfig` in `lib/app/firebase_config.dart`.
 - **Google Sign-In**: Supports 1-click **Continue with Google** via `signInWithPopup` on Web (`signInWithProvider` on mobile).
 - **Email & Password**: Supports sign-in, registration, password reset, and profile sign-out (enable **Email/Password** in Firebase Console → Authentication → Sign-in method if using email accounts).
 
