@@ -1,6 +1,6 @@
 /**
- * Security rules test suite covering the "Dirty Dozen" + Family Management
- * adversarial payloads documented in security_spec.md for AI Home Brain.
+ * Security rules test suite covering the "Dirty Dozen" adversarial payloads
+ * documented in security_spec.md for AI Home Brain.
  *
  * Run against the Firestore Emulator with @firebase/rules-unit-testing.
  */
@@ -118,60 +118,6 @@ export const DIRTY_DOZEN_CASES = [
     path: '/users/user1/homeState/default',
     auth: { uid: 'user1', email_verified: true },
     payload: { ownerId: 'user2' },
-    expected: 'PERMISSION_DENIED',
-  },
-  {
-    id: 13,
-    name: 'Cross-household member read',
-    operation: 'get',
-    path: '/homes/home2/members/user2',
-    auth: { uid: 'user1', email_verified: true },
-    expected: 'PERMISSION_DENIED',
-  },
-  {
-    id: 14,
-    name: 'Invite acceptance privilege escalation (guest -> owner)',
-    operation: 'create',
-    path: '/homes/home1/members/user2',
-    auth: { uid: 'user2', email: 'guest@example.com', email_verified: true },
-    payload: {
-      memberId: 'user2',
-      homeId: 'home1',
-      role: 'owner',
-      canManageFamily: true,
-      inviteCode: 'INV12345',
-    },
-    expected: 'PERMISSION_DENIED',
-  },
-  {
-    id: 15,
-    name: 'Email spoofing on invite read/accept with unverified email',
-    operation: 'update',
-    path: '/homeInvites/INV12345',
-    auth: { uid: 'user2', email: 'guest@example.com', email_verified: false },
-    payload: { status: 'accepted', acceptedByUid: 'user2' },
-    expected: 'PERMISSION_DENIED',
-  },
-  {
-    id: 16,
-    name: 'Guest attempting to remove household owner',
-    operation: 'delete',
-    path: '/homes/home1/members/owner1',
-    auth: { uid: 'user2', email_verified: true },
-    expected: 'PERMISSION_DENIED',
-  },
-  {
-    id: 17,
-    name: 'Activity log actorUid spoofing',
-    operation: 'create',
-    path: '/homes/home1/activityLogs/log1',
-    auth: { uid: 'user2', email_verified: true },
-    payload: {
-      logId: 'log1',
-      homeId: 'home1',
-      actorUid: 'owner1',
-      actionTitle: 'Spoofed action',
-    },
     expected: 'PERMISSION_DENIED',
   },
 ] as const;

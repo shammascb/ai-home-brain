@@ -9,7 +9,6 @@ import 'app/ai_home_brain_app.dart';
 import 'app/firebase_config.dart';
 import 'features/auth/data/firebase_auth_service.dart';
 import 'features/automations/data/automation_routine_store.dart';
-import 'features/family/data/family_management_store.dart';
 import 'features/voice_assistant/data/firebase_voice_command_interpreter.dart';
 import 'features/voice_assistant/domain/voice_command_interpreter.dart';
 
@@ -19,16 +18,14 @@ Future<void> main() async {
   FirebaseAuthService? authService;
   VoiceCommandInterpreter? voiceCommandInterpreter;
   AutomationRoutineStore? routineStore;
-  FamilyManagementStore? familyStore;
   String? backendMessage;
 
   if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
     backendMessage = FirebaseConfig.setupMessage;
   } else {
     try {
-      final resolvedConfig = await FirebaseConfig.loadAppletConfig();
       if (kIsWeb) {
-        await Firebase.initializeApp(options: resolvedConfig.webOptions);
+        await Firebase.initializeApp(options: FirebaseConfig.webOptions);
       } else {
         await Firebase.initializeApp();
         await FirebaseAppCheck.instance.activate(
@@ -40,7 +37,7 @@ Future<void> main() async {
       final auth = FirebaseAuth.instance;
       final firestore = FirebaseFirestore.instanceFor(
         app: Firebase.app(),
-        databaseId: resolvedConfig.firestoreDatabaseId,
+        databaseId: FirebaseConfig.firestoreDatabaseId,
       );
       if (kIsWeb) {
         firestore.settings = const Settings(
@@ -51,10 +48,6 @@ Future<void> main() async {
       authService = FirebaseAuthService(auth);
       voiceCommandInterpreter = FirebaseVoiceCommandInterpreter();
       routineStore = AutomationRoutineStore(
-        firestore: firestore,
-        auth: auth,
-      );
-      familyStore = FamilyManagementStore(
         firestore: firestore,
         auth: auth,
       );
@@ -71,7 +64,6 @@ Future<void> main() async {
       backendMessage: backendMessage,
       voiceCommandInterpreter: voiceCommandInterpreter,
       routineStore: routineStore,
-      familyStore: familyStore,
     ),
   );
 }

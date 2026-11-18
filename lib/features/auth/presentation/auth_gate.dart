@@ -4,10 +4,7 @@ import 'package:flutter/material.dart';
 import '../../automations/data/automation_routine_store.dart';
 import '../../dashboard/presentation/dashboard_screen.dart';
 import '../../devices/domain/device_control_service.dart';
-import '../../devices/domain/device_monitoring.dart';
 import '../../devices/domain/door_unlock_authenticator.dart';
-import '../../family/data/family_management_store.dart';
-import '../../family/presentation/family_management_screen.dart';
 import '../../voice_assistant/domain/voice_command_interpreter.dart';
 import '../../voice_assistant/domain/voice_recognition_service.dart';
 import '../data/firebase_auth_service.dart';
@@ -26,8 +23,6 @@ class AuthGate extends StatelessWidget {
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
     required this.routineStore,
-    required this.familyStore,
-    this.monitoringStore,
     super.key,
   });
 
@@ -40,8 +35,6 @@ class AuthGate extends StatelessWidget {
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
   final AutomationRoutineStore routineStore;
-  final FamilyManagementStore familyStore;
-  final DeviceMonitoringStore? monitoringStore;
 
   @override
   Widget build(BuildContext context) {
@@ -85,26 +78,11 @@ class AuthGate extends StatelessWidget {
           voiceRecognitionService: voiceRecognitionService,
           voiceCommandInterpreter: voiceCommandInterpreter,
           routineStore: routineStore,
-          familyStore: familyStore,
-          monitoringStore: monitoringStore,
-          authService: service,
           accountAction: () => showDialog<void>(
             context: context,
-            builder: (dialogContext) => ProfileDialog(
+            builder: (context) => ProfileDialog(
               user: user,
               authService: service,
-              familyStore: familyStore,
-              onOpenFamilyManagement: () {
-                Navigator.of(dialogContext).pop();
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => FamilyManagementScreen(
-                      store: familyStore,
-                      authService: service,
-                    ),
-                  ),
-                );
-              },
             ),
           ),
           accountLabel: user.displayName ?? user.email ?? 'Account',
@@ -123,9 +101,6 @@ class _AuthenticatedHome extends StatefulWidget {
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
     required this.routineStore,
-    required this.familyStore,
-    required this.monitoringStore,
-    required this.authService,
     required this.accountAction,
     required this.accountLabel,
   });
@@ -137,9 +112,6 @@ class _AuthenticatedHome extends StatefulWidget {
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
   final AutomationRoutineStore routineStore;
-  final FamilyManagementStore familyStore;
-  final DeviceMonitoringStore? monitoringStore;
-  final FirebaseAuthService authService;
   final VoidCallback accountAction;
   final String accountLabel;
 
@@ -166,9 +138,6 @@ class _AuthenticatedHomeState extends State<_AuthenticatedHome> {
       voiceRecognitionService: widget.voiceRecognitionService,
       voiceCommandInterpreter: widget.voiceCommandInterpreter,
       routineStore: widget.routineStore,
-      familyStore: widget.familyStore,
-      monitoringStore: widget.monitoringStore,
-      authService: widget.authService,
       accountAction: widget.accountAction,
       accountLabel: widget.accountLabel,
     );

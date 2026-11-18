@@ -1,23 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../family/data/family_management_store.dart';
-import '../../family/domain/family_member.dart';
 import '../data/firebase_auth_service.dart';
 
 class ProfileDialog extends StatefulWidget {
   const ProfileDialog({
     required this.user,
     required this.authService,
-    this.familyStore,
-    this.onOpenFamilyManagement,
     super.key,
   });
 
   final User user;
   final FirebaseAuthService authService;
-  final FamilyManagementStore? familyStore;
-  final VoidCallback? onOpenFamilyManagement;
 
   @override
   State<ProfileDialog> createState() => _ProfileDialogState();
@@ -48,7 +42,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final store = widget.familyStore;
 
     return AlertDialog(
       title: const Text('Your profile'),
@@ -67,32 +60,19 @@ class _ProfileDialogState extends State<ProfileDialog> {
               color: colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Text(
-            widget.user.emailVerified
-                ? 'Firebase account · Email verified'
-                : 'Firebase account · Email not verified',
+            'Signed in with Firebase Authentication.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Family accounts are separate. Shared household membership and '
+            'permissions are not configured yet.',
             style: theme.textTheme.bodySmall?.copyWith(
-              color: widget.user.emailVerified
-                  ? Colors.green
-                  : colorScheme.tertiary,
-              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
-          if (store != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Household: ${store.homeName} (${store.currentRole.label})',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Permissions: ${store.currentPermissions.activeLabels.join(", ")}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -104,11 +84,6 @@ class _ProfileDialogState extends State<ProfileDialog> {
         ],
       ),
       actions: [
-        if (widget.onOpenFamilyManagement != null)
-          TextButton(
-            onPressed: _isSigningOut ? null : widget.onOpenFamilyManagement,
-            child: const Text('Family & security'),
-          ),
         TextButton(
           onPressed: _isSigningOut ? null : () => Navigator.of(context).pop(),
           child: const Text('Close'),

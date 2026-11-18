@@ -5,23 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
 
-import '../../auth/data/firebase_auth_service.dart';
 import '../../automations/data/automation_routine_store.dart';
 import '../../automations/domain/automation_routine.dart';
 import '../../automations/domain/automation_routine_executor.dart';
 import '../../automations/presentation/automations_screen.dart';
 import '../../automations/presentation/routine_dialogs.dart';
-import '../../devices/data/simulated_device_control_service.dart';
-import '../../devices/data/simulated_device_monitoring_store.dart';
 import '../../devices/domain/device_control_exception.dart';
 import '../../devices/domain/device_control_service.dart';
-import '../../devices/domain/device_monitoring.dart';
 import '../../devices/domain/device_state.dart';
 import '../../devices/domain/door_unlock_authenticator.dart';
-import '../../devices/presentation/device_monitoring_screen.dart';
-import '../../family/data/family_management_store.dart';
-import '../../family/domain/family_member.dart';
-import '../../family/presentation/family_management_screen.dart';
 import '../../voice_assistant/domain/voice_command.dart';
 import '../../voice_assistant/domain/voice_command_interpreter.dart';
 import '../../voice_assistant/domain/voice_recognition_service.dart';
@@ -39,9 +31,6 @@ class DashboardScreen extends StatefulWidget {
     required this.voiceRecognitionService,
     required this.voiceCommandInterpreter,
     required this.routineStore,
-    this.familyStore,
-    this.monitoringStore,
-    this.authService,
     super.key,
   });
 
@@ -54,9 +43,6 @@ class DashboardScreen extends StatefulWidget {
   final VoiceRecognitionService voiceRecognitionService;
   final VoiceCommandInterpreter? voiceCommandInterpreter;
   final AutomationRoutineStore routineStore;
-  final FamilyManagementStore? familyStore;
-  final DeviceMonitoringStore? monitoringStore;
-  final FirebaseAuthService? authService;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -76,35 +62,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _voiceError;
   String? _voiceActionResult;
   VoiceCommand? _recognizedCommand;
-  FamilyManagementStore? _ownedFamilyStore;
-  DeviceMonitoringStore? _ownedMonitoringStore;
   final ScrollController _dashboardScrollController = ScrollController();
   final GlobalKey _scenesSectionKey = GlobalKey();
   final GlobalKey _devicesSectionKey = GlobalKey();
 
-  FamilyManagementStore get _familyStore =>
-      widget.familyStore ?? (_ownedFamilyStore ??= FamilyManagementStore());
-
-  DeviceMonitoringStore get _monitoringStore =>
-      widget.monitoringStore ??
-      (_ownedMonitoringStore ??= SimulatedDeviceMonitoringStore(
-        deviceControlService: widget.deviceControlService,
-      ));
-
-  @override
-  void initState() {
-    super.initState();
-    final controlService = widget.deviceControlService;
-    if (controlService is SimulatedDeviceControlService &&
-        widget.monitoringStore == null) {
-      controlService.setDeviceOfflineChecker(_monitoringStore.isDeviceOffline);
-    }
-  }
-
   @override
   void dispose() {
-    _ownedFamilyStore?.dispose();
-    _ownedMonitoringStore?.dispose();
     _dashboardScrollController.dispose();
     super.dispose();
   }
@@ -174,55 +137,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _openFamilyManagement([
-    FamilySectionTab initialTab = FamilySectionTab.members,
-  ]) {
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => FamilyManagementScreen(
-            store: _familyStore,
-            authService: widget.authService,
-            initialTab: initialTab,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _openDeviceMonitoring([
-    DeviceMonitoringTab initialTab = DeviceMonitoringTab.overview,
-  ]) {
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => DeviceMonitoringScreen(
-            store: _monitoringStore,
-            initialTab: initialTab,
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _runRoutineFromScene(RoutineId id) async {
     final routine = widget.routineStore.routineFor(id);
-    if (!_familyStore.canRunAutomations) {
-      _showDemoNotice(
-        'Permission denied: your account (${_familyStore.currentRole.label}) '
-        'cannot run automation routines.',
-      );
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Blocked routine: ${routine.title}',
-          detail: 'Permission denied (${_familyStore.currentRole.label})',
-          category: ActivityCategory.automation,
-          source: ActivitySource.dashboard,
-        ),
-      );
-      return;
-    }
-
     final report = await showRoutineExecutionDialog(
       context: context,
       routine: routine,
@@ -231,14 +147,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
     if (!mounted || report == null) return;
     setState(() => _selectedMode = routine.modeChipLabel);
-    unawaited(
-      _familyStore.recordActivity(
-        actionTitle: 'Ran ${routine.title}',
-        detail: 'Status: ${report.overallStatusLabel}',
-        category: ActivityCategory.automation,
-        source: ActivitySource.dashboard,
-      ),
-    );
   }
 
   void _showDemoNotice(String message) {
@@ -252,77 +160,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
   }
 
-  String _deviceIdForAction(String action) {
-    final lower = action.toLowerCase();
-    if (lower.contains('light')) return DeviceIds.livingRoomLight;
-    if (lower.contains('fan')) return DeviceIds.bedroomFan;
-    return DeviceIds.frontDoorLock;
-  }
-
   Future<void> _performDemoAction(
     String action,
-    Future<void> Function() operation, {
-    ActivityCategory category = ActivityCategory.device,
-    String? deviceId,
-    DeviceCommandSource source = DeviceCommandSource.dashboard,
-  }) async {
-    final targetDeviceId = deviceId ?? _deviceIdForAction(action);
-    if (!_familyStore.canControlDevices) {
-      _showDemoNotice(
-        'Permission denied: your account (${_familyStore.currentRole.label}) '
-        'cannot control household devices.',
-      );
-      _monitoringStore.recordCommand(
-        deviceId: targetDeviceId,
-        command: action,
-        status: DeviceCommandStatus.failed,
-        source: source,
-        errorMessage: 'Blocked by account permissions (${_familyStore.currentRole.label}).',
-      );
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Blocked $action',
-          detail: 'Device control permission required',
-          category: category,
-          source: ActivitySource.dashboard,
-        ),
-      );
-      return;
-    }
-
-    final watch = Stopwatch()..start();
+    Future<void> Function() operation,
+  ) async {
     try {
       await operation();
-      watch.stop();
       if (!mounted) return;
-      _monitoringStore.recordCommand(
-        deviceId: targetDeviceId,
-        command: action,
-        status: DeviceCommandStatus.succeeded,
-        source: source,
-        latencyMs: watch.elapsedMilliseconds == 0 ? 42 : watch.elapsedMilliseconds,
-      );
       _showDemoNotice(
         '$action changed in simulation. No physical device was changed.',
       );
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: '$action (simulated)',
-          detail: 'Updated via dashboard controls',
-          category: category,
-          source: ActivitySource.dashboard,
-        ),
-      );
     } on DeviceControlException catch (error) {
-      watch.stop();
-      _monitoringStore.recordCommand(
-        deviceId: targetDeviceId,
-        command: action,
-        status: DeviceCommandStatus.failed,
-        source: source,
-        latencyMs: watch.elapsedMilliseconds == 0 ? 2500 : watch.elapsedMilliseconds,
-        errorMessage: error.message,
-      );
       if (!mounted) return;
       _showDemoNotice('Action not applied: ${error.message}');
     }
@@ -354,25 +202,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _setDoorLocked(bool isLocked) async {
     if (isLocked) {
       await _performDemoAction(
-        'Door locked',
+        'Door lock',
         () => widget.deviceControlService.setDoorLocked(true),
-        category: ActivityCategory.door,
-      );
-      return;
-    }
-
-    if (!_familyStore.canUnlockDoor) {
-      _showDemoNotice(
-        'Permission denied: your account (${_familyStore.currentRole.label}) '
-        'cannot unlock the front door.',
-      );
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Blocked door unlock attempt',
-          detail: 'Account lacks door-unlock permission',
-          category: ActivityCategory.door,
-          source: ActivitySource.dashboard,
-        ),
       );
       return;
     }
@@ -391,9 +222,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       await _performDemoAction(
-        'Door unlocked',
+        'Door unlock',
         () => widget.deviceControlService.setDoorLocked(false),
-        category: ActivityCategory.door,
       );
     } on LocalAuthException catch (error) {
       if (!mounted) return;
@@ -416,25 +246,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Could not stop speech recognition: ${error.message ?? error.code}');
       }
       if (mounted) setState(() => _isListening = false);
-      return;
-    }
-
-    if (!_familyStore.canUseVoiceCommands) {
-      setState(() {
-        _voiceError =
-            'Voice commands are disabled for your account (${_familyStore.currentRole.label}). '
-            'Ask a household admin to enable voice access.';
-        _voiceActionResult = null;
-        _recognizedCommand = null;
-      });
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Blocked voice assistant activation',
-          detail: 'Voice command permission is disabled for this account',
-          category: ActivityCategory.voice,
-          source: ActivitySource.voice,
-        ),
-      );
       return;
     }
 
@@ -523,41 +334,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _interpretVoiceTranscript(String transcript) async {
-    if (!_familyStore.canUseVoiceCommands) {
-      setState(() {
-        _voiceError =
-            'Voice commands are disabled for your account (${_familyStore.currentRole.label}).';
-      });
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Denied voice command',
-          detail: 'Spoken: "$transcript" · Voice access disabled',
-          category: ActivityCategory.voice,
-          source: ActivitySource.voice,
-        ),
-      );
-      return;
-    }
-
     final requestId = ++_voiceInterpretationRequestId;
     final roomCommand = resolveRoomNavigationCommand(transcript);
     if (roomCommand != null) {
       if (!mounted || requestId != _voiceInterpretationRequestId) return;
-      final decision =
-          _familyStore.checkVoiceCommandPermission(roomCommand.action);
-      if (!decision.allowed) {
-        setState(() => _voiceError = (decision.denialReason ?? 'Permission denied.'));
-        return;
-      }
       setState(() => _recognizedCommand = roomCommand);
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Voice navigation: ${roomCommand.description}',
-          detail: 'Spoken: "$transcript"',
-          category: ActivityCategory.voice,
-          source: ActivitySource.voice,
-        ),
-      );
       if (roomCommand.action == VoiceAction.openLivingRoom) {
         _openLivingRoomControls();
       } else {
@@ -590,56 +371,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() => _voiceError =
             'I could not match that request to a home action. Try asking about '
                 'Sleep, Morning, Away, the light, fan, door lock, or open a room.');
-      } else if (command.action == VoiceAction.unlockDoorBlocked) {
-        unawaited(
-          _familyStore.recordActivity(
-            actionTitle: 'Blocked voice door unlock',
-            detail: 'Spoken: "$transcript" · Voice unlock is disabled',
-            category: ActivityCategory.voice,
-            source: ActivitySource.voice,
-          ),
-        );
       } else if (command.action == VoiceAction.openLivingRoom) {
-        unawaited(
-          _familyStore.recordActivity(
-            actionTitle: 'Voice navigation: Open Living room',
-            detail: 'Spoken: "$transcript"',
-            category: ActivityCategory.voice,
-            source: ActivitySource.voice,
-          ),
-        );
         _openLivingRoomControls();
       } else if (command.action == VoiceAction.openBedroom) {
-        unawaited(
-          _familyStore.recordActivity(
-            actionTitle: 'Voice navigation: Open Bedroom',
-            detail: 'Spoken: "$transcript"',
-            category: ActivityCategory.voice,
-            source: ActivitySource.voice,
-          ),
-        );
         _openBedroomDetails();
-      } else if (command.isExecutable) {
-        final decision =
-            _familyStore.checkVoiceCommandPermission(command.action);
-        if (!decision.allowed) {
-          setState(() {
-            _awaitingVoiceDoorLockConfirmation = false;
-            _voiceError = (decision.denialReason ?? 'Permission denied.');
-          });
-          unawaited(
-            _familyStore.recordActivity(
-              actionTitle: 'Denied voice command: ${command.description}',
-              detail: 'Spoken: "$transcript" · ${(decision.denialReason ?? 'Permission denied.')}',
-              category: ActivityCategory.voice,
-              source: ActivitySource.voice,
-            ),
-          );
-          return;
-        }
-        if (!command.requiresConfirmation) {
-          await _executeVoiceCommand(command);
-        }
+      } else if (command.isExecutable && !command.requiresConfirmation) {
+        await _executeVoiceCommand(command);
       }
     } on VoiceCommandInterpretationException catch (error) {
       if (!mounted || requestId != _voiceInterpretationRequestId) return;
@@ -656,29 +393,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    final decision = _familyStore.checkVoiceCommandPermission(command.action);
-    if (!decision.allowed) {
-      setState(() {
-        _voiceError = (decision.denialReason ?? 'Permission denied.');
-        _voiceActionResult = null;
-      });
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Denied voice command: ${command.description}',
-          detail: (decision.denialReason ?? 'Permission denied.'),
-          category: ActivityCategory.voice,
-          source: ActivitySource.voice,
-        ),
-      );
-      return;
-    }
-
     setState(() {
       _isExecutingVoiceAction = true;
       _voiceActionResult = null;
     });
 
-    final watch = Stopwatch()..start();
     try {
       final result = switch (command.action) {
         VoiceAction.sleepMode => await _runSleepRoutine(),
@@ -710,46 +429,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         VoiceAction.unsupported =>
           null,
       };
-      watch.stop();
       if (!mounted) return;
       if (result != null) {
-        final targetDeviceId = _deviceIdForVoiceAction(command.action);
-        if (targetDeviceId != null) {
-          _monitoringStore.recordCommand(
-            deviceId: targetDeviceId,
-            command: command.description,
-            status: DeviceCommandStatus.succeeded,
-            source: DeviceCommandSource.voice,
-            latencyMs: watch.elapsedMilliseconds == 0 ? 48 : watch.elapsedMilliseconds,
-          );
-        }
         setState(
           () => _voiceActionResult = '$result No physical device was changed.',
         );
-        unawaited(
-          _familyStore.recordActivity(
-            actionTitle: 'Voice: ${command.description}',
-            detail: _recognizedSpeech.isEmpty
-                ? result
-                : 'Spoken: "$_recognizedSpeech"',
-            category: ActivityCategory.voice,
-            source: ActivitySource.voice,
-          ),
-        );
       }
     } on DeviceControlException catch (error) {
-      watch.stop();
-      final targetDeviceId = _deviceIdForVoiceAction(command.action);
-      if (targetDeviceId != null) {
-        _monitoringStore.recordCommand(
-          deviceId: targetDeviceId,
-          command: command.description,
-          status: DeviceCommandStatus.failed,
-          source: DeviceCommandSource.voice,
-          latencyMs: watch.elapsedMilliseconds == 0 ? 2500 : watch.elapsedMilliseconds,
-          errorMessage: error.message,
-        );
-      }
       if (!mounted) return;
       setState(
         () => _voiceActionResult =
@@ -759,14 +445,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) setState(() => _isExecutingVoiceAction = false);
     }
   }
-
-  String? _deviceIdForVoiceAction(VoiceAction action) => switch (action) {
-        VoiceAction.turnLightOn || VoiceAction.turnLightOff =>
-          DeviceIds.livingRoomLight,
-        VoiceAction.turnFanOn || VoiceAction.turnFanOff => DeviceIds.bedroomFan,
-        VoiceAction.lockDoor => DeviceIds.frontDoorLock,
-        _ => null,
-      };
 
   Future<String> _runVoiceRoutine(RoutineId id) async {
     final routine = widget.routineStore.routineFor(id);
@@ -811,16 +489,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _confirmAwayDoorLock() async {
     if (_isExecutingVoiceAction) return;
-    final decision =
-        _familyStore.checkVoiceCommandPermission(VoiceAction.lockDoor);
-    if (!decision.allowed) {
-      setState(() {
-        _awaitingVoiceDoorLockConfirmation = false;
-        _voiceError = (decision.denialReason ?? 'Permission denied.');
-      });
-      return;
-    }
-
     setState(() {
       _isExecutingVoiceAction = true;
       _voiceActionResult = 'Locking the simulated door…';
@@ -833,14 +501,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _voiceActionResult =
             'Door locked in simulation. No physical device was changed.';
       });
-      unawaited(
-        _familyStore.recordActivity(
-          actionTitle: 'Voice: Confirmed door lock',
-          detail: 'Simulated front door locked after Away confirmation',
-          category: ActivityCategory.voice,
-          source: ActivitySource.voice,
-        ),
-      );
     } on DeviceControlException catch (error) {
       if (!mounted) return;
       setState(
@@ -887,9 +547,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return AnimatedBuilder(
-      animation: Listenable.merge([_familyStore, _monitoringStore]),
-      builder: (context, _) => Scaffold(
+    return Scaffold(
       drawer: Drawer(
         child: SafeArea(
           child: Column(
@@ -917,36 +575,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.monitor_heart_outlined),
-                title: const Text('Device Monitoring'),
-                subtitle: Text(
-                  '${_monitoringStore.onlineCount}/${_monitoringStore.devices.length} online · '
-                  '${_monitoringStore.activeConnectionErrors.length} error'
-                  '${_monitoringStore.activeConnectionErrors.length == 1 ? '' : 's'}',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openDeviceMonitoring();
-                },
-              ),
-              ListTile(
                 leading: const Icon(Icons.auto_awesome_outlined),
                 title: const Text('Automations'),
                 onTap: () {
                   Navigator.pop(context);
                   _selectNavigation(2);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.group_outlined),
-                title: const Text('Family & Security'),
-                subtitle: Text(
-                  '${_familyStore.members.length} authorized · '
-                  '${_familyStore.currentRole.label}',
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _openFamilyManagement();
                 },
               ),
               ListTile(
@@ -982,16 +615,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : AppBar(
               actions: [
                 IconButton(
-                  tooltip: 'Device Monitoring',
-                  onPressed: () => _openDeviceMonitoring(),
-                  icon: const Icon(Icons.monitor_heart_outlined),
-                ),
-                IconButton(
-                  tooltip: 'Family & Security',
-                  onPressed: () => _openFamilyManagement(),
-                  icon: const Icon(Icons.group_outlined),
-                ),
-                IconButton(
                   tooltip: 'Notifications',
                   onPressed: () =>
                       _showDemoNotice('Notifications are not configured yet.'),
@@ -1018,43 +641,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onOpenRooms: () => _selectNavigation(1),
               onOpenLivingRoom: _openLivingRoomControls,
               onOpenBedroom: _openBedroomDetails,
-              accountName: _familyStore.currentName,
-              roleLabel: _familyStore.currentRole.label,
-              voiceEnabled: _familyStore.canUseVoiceCommands,
-              onOpenFamilySecurity: () =>
-                  _openFamilyManagement(FamilySectionTab.security),
             )
           : _selectedNavigationIndex == 2
               ? AutomationsScreen(
                   routineStore: widget.routineStore,
                   deviceControlService: widget.deviceControlService,
                   activeModeLabel: _selectedMode,
-                  canRunAutomations: _familyStore.canRunAutomations,
-                  onRoutineDenied: (routine) {
-                    _showDemoNotice(
-                      'Permission denied: your account (${_familyStore.currentRole.label}) '
-                      'cannot run automation routines.',
-                    );
-                    unawaited(
-                      _familyStore.recordActivity(
-                        actionTitle: 'Blocked routine: ${routine.title}',
-                        detail:
-                            'Permission denied (${_familyStore.currentRole.label})',
-                        category: ActivityCategory.automation,
-                        source: ActivitySource.dashboard,
-                      ),
-                    );
-                  },
-                  onRoutineExecuted: (routine, report) {
-                    unawaited(
-                      _familyStore.recordActivity(
-                        actionTitle: 'Ran ${routine.title}',
-                        detail: 'Status: ${report.overallStatusLabel}',
-                        category: ActivityCategory.automation,
-                        source: ActivitySource.dashboard,
-                      ),
-                    );
-                  },
                   onModeActivated: (mode) =>
                       setState(() => _selectedMode = mode),
                   onBackToHome: () => _selectNavigation(0),
@@ -1062,8 +654,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : _selectedNavigationIndex == 1
                   ? _DevicesPage(
                       deviceControlService: widget.deviceControlService,
-                      monitoringStore: _monitoringStore,
-                      onOpenMonitoring: () => _openDeviceMonitoring(),
                       selectedRoom: _selectedDeviceRoom,
                       onRoomSelected: (room) =>
                           setState(() => _selectedDeviceRoom = room),
@@ -1071,23 +661,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onLightChanged: (isOn) => _performDemoAction(
                         isOn ? 'Light ON' : 'Light OFF',
                         () => widget.deviceControlService.setLight(isOn),
-                        source: DeviceCommandSource.devicesTab,
                       ),
                       onFanChanged: (isOn) => _performDemoAction(
                         isOn ? 'Fan ON' : 'Fan OFF',
                         () => widget.deviceControlService.setFan(isOn),
-                        source: DeviceCommandSource.devicesTab,
                       ),
                       onFanSpeedChanged: (speed) => _performDemoAction(
                         'Fan speed',
                         () => widget.deviceControlService.setFanSpeed(speed),
-                        source: DeviceCommandSource.devicesTab,
                       ),
                       onDoorLockedChanged: _setDoorLocked,
                       onDoorOpenChanged: (isOpen) => _performDemoAction(
                         'Door sensor',
                         () => widget.deviceControlService.setDoorOpen(isOpen),
-                        source: DeviceCommandSource.devicesTab,
                       ),
                       onBedroomPressed: _openBedroomDetails,
                     )
@@ -1147,10 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 12),
-                                _HomeConnectionCard(
-                                  store: _monitoringStore,
-                                  onTap: () => _openDeviceMonitoring(),
-                                ),
+                                const _HomeConnectionCard(),
                               ],
                             ),
                             const SizedBox(height: 28),
@@ -1259,52 +842,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           false),
                               error: _voiceError,
                               actionResult: _voiceActionResult,
-                              accountName: _familyStore.currentName,
-                              roleLabel: _familyStore.currentRole.label,
-                              voiceEnabled: _familyStore.canUseVoiceCommands,
                               onListenPressed: _toggleVoiceRecognition,
                               onExecuteCommand: _runVoiceConfirmation,
                               onCancelConfirmation: _cancelVoiceConfirmation,
-                              onOpenSecurity: () => _openFamilyManagement(
-                                FamilySectionTab.security,
-                              ),
                             ),
                             const SizedBox(height: 26),
-                            _DashboardSectionTitle(
-                              title: 'Family & Access',
-                              onViewAll: () => _openFamilyManagement(),
-                            ),
-                            const SizedBox(height: 12),
-                            _FamilyAccessSummaryCard(
-                              store: _familyStore,
-                              onOpenMembers: () => _openFamilyManagement(
-                                FamilySectionTab.members,
-                              ),
-                              onOpenActivity: () => _openFamilyManagement(
-                                FamilySectionTab.activity,
-                              ),
-                              onOpenSecurity: () => _openFamilyManagement(
-                                FamilySectionTab.security,
-                              ),
-                            ),
-                            const SizedBox(height: 26),
-                            _DashboardSectionTitle(
+                            const _DashboardSectionTitle(
                               title: 'Recent Activity',
-                              onViewAll: () => _openFamilyManagement(
-                                FamilySectionTab.activity,
-                              ),
                             ),
                             const SizedBox(height: 12),
-                            _RecentActivityCard(
-                              activities: _familyStore.activities,
-                              onOpenHistory: () => _openFamilyManagement(
-                                FamilySectionTab.activity,
-                              ),
-                            ),
+                            const _RecentActivityCard(),
                             const SizedBox(height: 18),
                             Text(
                               'Demo dashboard · No home devices are connected. '
-                              'Device states are simulated; family & activity data tracks signed-in account actions.',
+                              'Controls and activity are illustrative only.',
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
@@ -1347,7 +898,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      ),
     );
   }
 }
@@ -1355,8 +905,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class _DevicesPage extends StatelessWidget {
   const _DevicesPage({
     required this.deviceControlService,
-    required this.monitoringStore,
-    required this.onOpenMonitoring,
     required this.selectedRoom,
     required this.onRoomSelected,
     required this.isAuthenticatingDoor,
@@ -1369,8 +917,6 @@ class _DevicesPage extends StatelessWidget {
   });
 
   final DeviceControlService deviceControlService;
-  final DeviceMonitoringStore monitoringStore;
-  final VoidCallback onOpenMonitoring;
   final String selectedRoom;
   final ValueChanged<String> onRoomSelected;
   final bool isAuthenticatingDoor;
@@ -1393,43 +939,23 @@ class _DevicesPage extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 920),
         child: AnimatedBuilder(
-          animation: Listenable.merge([deviceControlService, monitoringStore]),
+          animation: deviceControlService,
           builder: (context, _) => ListView(
             padding: EdgeInsets.fromLTRB(
                 horizontalPadding, 20, horizontalPadding, 28),
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'My Devices',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${monitoringStore.onlineCount}/${monitoringStore.devices.length} online · '
-                          '${monitoringStore.activeConnectionErrors.length} active error'
-                          '${monitoringStore.activeConnectionErrors.length == 1 ? '' : 's'} · Simulation only',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: onOpenMonitoring,
-                    icon: const Icon(Icons.monitor_heart_outlined, size: 18),
-                    label: const Text('Monitoring'),
-                  ),
-                ],
+              Text(
+                'My Devices',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '3 devices · Simulation only',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 22),
               Wrap(
@@ -1509,74 +1035,47 @@ class _DashboardSectionTitle extends StatelessWidget {
 }
 
 class _HomeConnectionCard extends StatelessWidget {
-  const _HomeConnectionCard({
-    required this.store,
-    required this.onTap,
-  });
-
-  final DeviceMonitoringStore store;
-  final VoidCallback onTap;
+  const _HomeConnectionCard();
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasOffline = store.offlineCount > 0;
-    final activeErrors = store.activeConnectionErrors.length;
-    final tone = hasOffline
-        ? colorScheme.error
-        : (activeErrors > 0 ? colorScheme.tertiary : Colors.green);
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 146,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-          ),
+    return Container(
+      width: 124,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.35),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  hasOffline
-                      ? Icons.wifi_off_rounded
-                      : Icons.monitor_heart_outlined,
-                  color: tone,
-                  size: 17,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.wifi_off_rounded, color: colorScheme.error, size: 17),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Home offline',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${store.onlineCount}/${store.devices.length} online',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              activeErrors > 0
-                  ? '$activeErrors active alert${activeErrors == 1 ? '' : 's'} · Simulated'
-                  : 'Simulated · Tap to monitor',
-              style: TextStyle(
-                fontSize: 10,
-                height: 1.3,
-                color: colorScheme.onSurfaceVariant,
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'No devices connected yet',
+            style: TextStyle(fontSize: 10, height: 1.3),
+          ),
+        ],
       ),
     );
   }
@@ -1973,13 +1472,9 @@ class _VoiceAssistantCard extends StatelessWidget {
     required this.requiresDoorConfirmation,
     required this.error,
     required this.actionResult,
-    required this.accountName,
-    required this.roleLabel,
-    required this.voiceEnabled,
     required this.onListenPressed,
     required this.onExecuteCommand,
     required this.onCancelConfirmation,
-    required this.onOpenSecurity,
   });
 
   final bool isListening;
@@ -1990,13 +1485,9 @@ class _VoiceAssistantCard extends StatelessWidget {
   final bool requiresDoorConfirmation;
   final String? error;
   final String? actionResult;
-  final String accountName;
-  final String roleLabel;
-  final bool voiceEnabled;
   final VoidCallback onListenPressed;
   final VoidCallback onExecuteCommand;
   final VoidCallback onCancelConfirmation;
-  final VoidCallback onOpenSecurity;
 
   @override
   Widget build(BuildContext context) {
@@ -2009,53 +1500,29 @@ class _VoiceAssistantCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Voice assistant',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
+            Text(
+              'Voice assistant',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onPrimaryContainer,
                   ),
-                ),
-                TextButton(
-                  onPressed: onOpenSecurity,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: colorScheme.onPrimaryContainer,
-                  ),
-                  child: Text('$accountName · $roleLabel'),
-                ),
-              ],
             ),
             const SizedBox(height: 4),
             Text(
-              voiceEnabled
-                  ? 'Try: “Turn on the light” or “Good morning.” Speaker verification is not implemented; commands use your signed-in account.'
-                  : 'Voice commands are disabled for this account ($roleLabel).',
+              'Try: “Turn on the light” or “Good morning.”',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colorScheme.onPrimaryContainer,
                   ),
             ),
             const SizedBox(height: 14),
             FilledButton.tonalIcon(
-              onPressed: isExecuting || !voiceEnabled ? null : onListenPressed,
+              onPressed: isExecuting ? null : onListenPressed,
               icon: Icon(
-                !voiceEnabled
-                    ? Icons.mic_off_rounded
-                    : isListening
-                        ? Icons.stop_circle_outlined
-                        : Icons.mic_none_rounded,
+                isListening
+                    ? Icons.stop_circle_outlined
+                    : Icons.mic_none_rounded,
               ),
-              label: Text(
-                !voiceEnabled
-                    ? 'Voice disabled'
-                    : isListening
-                        ? 'Stop listening'
-                        : 'Talk',
-              ),
+              label: Text(isListening ? 'Stop listening' : 'Talk'),
             ),
             if (isListening) ...[
               const SizedBox(height: 10),
@@ -2121,160 +1588,29 @@ class _VoiceAssistantCard extends StatelessWidget {
   }
 }
 
-class _FamilyAccessSummaryCard extends StatelessWidget {
-  const _FamilyAccessSummaryCard({
-    required this.store,
-    required this.onOpenMembers,
-    required this.onOpenActivity,
-    required this.onOpenSecurity,
-  });
-
-  final FamilyManagementStore store;
-  final VoidCallback onOpenMembers;
-  final VoidCallback onOpenActivity;
-  final VoidCallback onOpenSecurity;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final pendingCount = store.pendingOutgoingInvites.length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                  child: Icon(
-                    Icons.group_outlined,
-                    color: colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        store.homeName,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${store.members.length} authorized · '
-                        '$pendingCount pending · Role: ${store.currentRole.label}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: onOpenMembers,
-                  icon: const Icon(Icons.manage_accounts_outlined, size: 18),
-                  label: const Text('Members & permissions'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onOpenActivity,
-                  icon: const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('Activity'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: onOpenSecurity,
-                  icon: const Icon(Icons.verified_user_outlined, size: 18),
-                  label: const Text('Security'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _RecentActivityCard extends StatelessWidget {
-  const _RecentActivityCard({
-    required this.activities,
-    required this.onOpenHistory,
-  });
-
-  final List<FamilyActivityEntry> activities;
-  final VoidCallback onOpenHistory;
+  const _RecentActivityCard();
 
   @override
   Widget build(BuildContext context) {
-    final visible = activities.take(4).toList();
-    if (visible.isEmpty) {
-      return Card(
-        child: ListTile(
-          leading: Icon(
-            Icons.history_rounded,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          title: const Text('No activity recorded yet'),
-          subtitle: const Text(
-            'Toggle a device, run an automation, or use a voice command to record account-attributed activity.',
-          ),
-          trailing: TextButton(
-            onPressed: onOpenHistory,
-            child: const Text('History'),
-          ),
-        ),
-      );
-    }
-
-    return Card(
+    return const Card(
       child: Column(
         children: [
-          for (var i = 0; i < visible.length; i++) ...[
-            if (i > 0) const Divider(height: 1, indent: 64),
-            _ActivityRow(
-              icon: switch (visible[i].category) {
-                ActivityCategory.device => Icons.lightbulb_outline_rounded,
-                ActivityCategory.door => Icons.door_front_door_outlined,
-                ActivityCategory.automation => Icons.auto_awesome_outlined,
-                ActivityCategory.voice => Icons.mic_none_rounded,
-                ActivityCategory.family => Icons.group_outlined,
-                ActivityCategory.security => Icons.verified_user_outlined,
-              },
-              title: visible[i].actionTitle,
-              time:
-                  '${visible[i].actorName} (${visible[i].actorRole.label}) · '
-                  '${visible[i].source.label} · ${_formatActivityTime(visible[i].createdAt)}',
-            ),
-          ],
+          _ActivityRow(
+            icon: Icons.lightbulb_outline_rounded,
+            title: 'Living room light switched off',
+            time: 'Today · Example',
+          ),
+          Divider(height: 1, indent: 64),
+          _ActivityRow(
+            icon: Icons.nights_stay_outlined,
+            title: 'Sleep mode selected',
+            time: 'Yesterday · Example',
+          ),
         ],
       ),
     );
   }
-}
-
-String _formatActivityTime(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inSeconds < 60) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-  if (diff.inHours < 24) return '${diff.inHours}h ago';
-  final month = dt.month.toString().padLeft(2, '0');
-  final day = dt.day.toString().padLeft(2, '0');
-  final hour = dt.hour.toString().padLeft(2, '0');
-  final minute = dt.minute.toString().padLeft(2, '0');
-  return '$month/$day $hour:$minute';
 }
 
 class _ActivityRow extends StatelessWidget {
