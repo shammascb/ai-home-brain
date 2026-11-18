@@ -22,10 +22,10 @@ void main() {
 
   test('FirebaseConfig targets the provisioned Firebase project and database',
       () {
-    expect(FirebaseConfig.webOptions.projectId, 'shining-talent-pq7xb');
+    expect(FirebaseConfig.webOptions.projectId, 'ai-home-brain-6df82');
     expect(
       FirebaseConfig.firestoreDatabaseId,
-      'ai-studio-remixremixaihome-7e99db73-cdff-435c-97e6-e0808d23e53d',
+      'ai-studio-remixaihomebrain-ebc7971c-bff2-4404-9dc4-4db9ac7abe1e',
     );
   });
 
