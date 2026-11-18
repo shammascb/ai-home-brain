@@ -21,15 +21,15 @@ abstract final class FirebaseConfig {
       'not create or accept accounts.';
 
   static const firestoreDatabaseId =
-      'ai-studio-remixremixaihome-7e99db73-cdff-435c-97e6-e0808d23e53d';
+      'ai-studio-remixaihomebrain-ebc7971c-bff2-4404-9dc4-4db9ac7abe1e';
 
   static const webOptions = FirebaseOptions(
-    apiKey: 'AIzaSyCIWR8o9aMs2wjTSBWsfzRch07zrcQ2yNo',
-    appId: '1:756700079445:web:a1589686ab61799cf3fbdc',
-    messagingSenderId: '756700079445',
-    projectId: 'shining-talent-pq7xb',
-    authDomain: 'shining-talent-pq7xb.firebaseapp.com',
-    storageBucket: 'shining-talent-pq7xb.firebasestorage.app',
+    apiKey: 'AIzaSyBT9_Hw16XH7Z63-BOt0wp9ttU7Ag07sZY',
+    appId: '1:969254788210:web:c1b0529c606bb2304576eb',
+    messagingSenderId: '969254788210',
+    projectId: 'ai-home-brain-6df82',
+    authDomain: 'ai-home-brain-6df82.firebaseapp.com',
+    storageBucket: 'ai-home-brain-6df82.firebasestorage.app',
   );
 
   static ResolvedFirebaseConfig parseAppletConfig(String rawJson) {
