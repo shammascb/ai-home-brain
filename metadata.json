@@ -1,0 +1,6 @@
+{
+  "name": "AI Home Brain",
+  "description": "Smart home control app with Firebase Authentication, Firestore household sync, simulated room and ESP32 monitoring, automation routines, and Gemini voice command interpretation.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
