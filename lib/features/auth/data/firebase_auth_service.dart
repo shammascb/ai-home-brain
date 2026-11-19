@@ -43,6 +43,14 @@ class FirebaseAuthService {
   Future<void> sendPasswordReset(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
   }
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No authenticated user.');
+    }
+    await user.sendEmailVerification();
+  }
+
 
   Future<void> signOut() => _auth.signOut();
 }

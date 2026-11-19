@@ -3,6 +3,11 @@ import '../domain/device_state.dart';
 
 class SimulatedDeviceControlService extends DeviceControlService {
   DeviceState _state = const DeviceState();
+  bool Function(String deviceId)? _isDeviceOffline;
+
+  void setDeviceOfflineChecker(bool Function(String deviceId) checker) {
+    _isDeviceOffline = checker;
+  }
 
   @override
   DeviceState get state => _state;

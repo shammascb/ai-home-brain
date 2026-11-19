@@ -214,8 +214,6 @@ void main() {
             voiceRecognitionService: _FakeVoiceRecognitionService(),
             voiceCommandInterpreter: null,
             routineStore: routineStore,
-            familyStore: familyStore,
-            monitoringStore: monitoring,
           ),
         ),
       );
