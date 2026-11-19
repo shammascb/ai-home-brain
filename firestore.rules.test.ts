@@ -1,0 +1,123 @@
+/**
+ * Security rules test suite covering the "Dirty Dozen" adversarial payloads
+ * documented in security_spec.md for AI Home Brain.
+ *
+ * Run against the Firestore Emulator with @firebase/rules-unit-testing.
+ */
+
+export const DIRTY_DOZEN_CASES = [
+  {
+    id: 1,
+    name: 'Unauthenticated read on /users/{userId}',
+    operation: 'get',
+    path: '/users/user1',
+    auth: null,
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 2,
+    name: 'Cross-user PII read on /users/{userId}',
+    operation: 'get',
+    path: '/users/user2',
+    auth: { uid: 'user1', email_verified: true },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 3,
+    name: 'Blanket list on /users',
+    operation: 'list',
+    path: '/users',
+    auth: { uid: 'user1', email_verified: true },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 4,
+    name: 'Unverified email write on /users/{userId}',
+    operation: 'create',
+    path: '/users/user1',
+    auth: { uid: 'user1', email_verified: false },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 5,
+    name: 'Identity spoofing (uid mismatch)',
+    operation: 'create',
+    path: '/users/user1',
+    auth: { uid: 'user1', email_verified: true },
+    payload: { uid: 'user2', displayName: 'Attacker', email: 'a@b.com' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 6,
+    name: 'Shadow field injection (isAdmin)',
+    operation: 'create',
+    path: '/users/user1',
+    auth: { uid: 'user1', email_verified: true },
+    payload: {
+      uid: 'user1',
+      displayName: 'User',
+      email: 'u@b.com',
+      isAdmin: true,
+    },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 7,
+    name: 'Oversized displayName (>100 chars)',
+    operation: 'create',
+    path: '/users/user1',
+    auth: { uid: 'user1', email_verified: true },
+    payload: { uid: 'user1', displayName: 'x'.repeat(101), email: 'u@b.com' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 8,
+    name: 'Client-forged timestamp (not server time)',
+    operation: 'create',
+    path: '/users/user1',
+    auth: { uid: 'user1', email_verified: true },
+    payload: {
+      uid: 'user1',
+      displayName: 'User',
+      email: 'u@b.com',
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 9,
+    name: 'Orphaned HomeState without parent /users/{userId}',
+    operation: 'create',
+    path: '/users/user1/homeState/default',
+    auth: { uid: 'user1', email_verified: true },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 10,
+    name: 'Out-of-range fanSpeed (99)',
+    operation: 'update',
+    path: '/users/user1/homeState/default',
+    auth: { uid: 'user1', email_verified: true },
+    payload: { fanSpeed: 99 },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 11,
+    name: 'Invalid selectedMode (AdminOverride)',
+    operation: 'update',
+    path: '/users/user1/homeState/default',
+    auth: { uid: 'user1', email_verified: true },
+    payload: { selectedMode: 'AdminOverride' },
+    expected: 'PERMISSION_DENIED',
+  },
+  {
+    id: 12,
+    name: 'Immutable ownerId tampering on update',
+    operation: 'update',
+    path: '/users/user1/homeState/default',
+    auth: { uid: 'user1', email_verified: true },
+    payload: { ownerId: 'user2' },
+    expected: 'PERMISSION_DENIED',
+  },
+] as const;
