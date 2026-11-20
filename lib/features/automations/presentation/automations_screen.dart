@@ -462,6 +462,49 @@ class AutomationsScreen extends StatelessWidget {
                                         ],
                                       ),
                                     ],
+                                    if (!isWide) ...[
+                                      const SizedBox(height: 24),
+                                      Text(
+                                        'Your routines',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      for (final id in RoutineId.values) ...[
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 162,
+                                          child: _HeroRoutineCard(
+                                            routine:
+                                                routineStore.routineFor(id),
+                                            isActive: activeModeLabel ==
+                                                routineStore
+                                                    .routineFor(id)
+                                                    .modeChipLabel,
+                                            onTapCard: () =>
+                                                _openRoutineDetail(context, id),
+                                            onToggleSwitch: () => unawaited(
+                                              _previewAndRun(
+                                                context,
+                                                routineStore.routineFor(id),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                      ],
+                                      SizedBox(
+                                        height: 72,
+                                        child: _DashedAddRoutineTile(
+                                          onTap: () => unawaited(
+                                            _showQuickCustomizePicker(context),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -503,44 +546,6 @@ class AutomationsScreen extends StatelessWidget {
                                     ),
                                   ),
                                 ],
-                              )
-                            else
-                              SizedBox(
-                                height: 162,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  children: [
-                                    for (final id in RoutineId.values) ...[
-                                      SizedBox(
-                                        width: 212,
-                                        child: _HeroRoutineCard(
-                                          routine: routineStore.routineFor(id),
-                                          isActive: activeModeLabel ==
-                                              routineStore
-                                                  .routineFor(id)
-                                                  .modeChipLabel,
-                                          onTapCard: () =>
-                                              _openRoutineDetail(context, id),
-                                          onToggleSwitch: () => unawaited(
-                                            _previewAndRun(
-                                              context,
-                                              routineStore.routineFor(id),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                    ],
-                                    SizedBox(
-                                      width: 92,
-                                      child: _DashedAddRoutineTile(
-                                        onTap: () => unawaited(
-                                          _showQuickCustomizePicker(context),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
                           ],
                         ),

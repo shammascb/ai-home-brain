@@ -9,16 +9,16 @@ import '../domain/voice_command_interpreter.dart';
 
 class FirebaseVoiceCommandInterpreter implements VoiceCommandInterpreter {
   FirebaseVoiceCommandInterpreter()
-      : _model = FirebaseAI.googleAI().generativeModel(
-          model: 'gemini-3.8-flash',
-          systemInstruction: Content.text(_systemInstruction),
-          generationConfig: GenerationConfig(
-            temperature: 0,
-            maxOutputTokens: 32,
-            responseMimeType: 'application/json',
-            responseSchema: _responseSchema,
-          ),
-        );
+    : _model = FirebaseAI.googleAI().generativeModel(
+        model: 'gemini-3.8-flash',
+        systemInstruction: Content.text(_systemInstruction),
+        generationConfig: GenerationConfig(
+          temperature: 0,
+          maxOutputTokens: 32,
+          responseMimeType: 'application/json',
+          responseSchema: _responseSchema,
+        ),
+      );
 
   static const _systemInstruction = '''
 You classify a user's spoken smart-home request into one allowed action.
@@ -65,8 +65,8 @@ the Bedroom controls with unlocking or opening the front door.
         'The speech recognizer returned an empty transcript.',
       );
     }
-    final roomCommand = resolveRoomNavigationCommand(request);
-    if (roomCommand != null) return roomCommand;
+    final localCommand = resolveLocalVoiceCommand(request);
+    if (localCommand != null) return localCommand;
 
     try {
       final response = await _model.generateContent([Content.text(request)]);

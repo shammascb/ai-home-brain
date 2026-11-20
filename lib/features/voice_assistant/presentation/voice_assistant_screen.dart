@@ -54,17 +54,17 @@ class VoiceAssistantScreen extends StatelessWidget {
     final status = !voiceEnabled
         ? 'Voice commands disabled for this account'
         : isListening
-            ? 'Listening…'
-            : isInterpreting
-                ? 'Understanding your request…'
-                : isExecuting
-                    ? 'Working on it…'
-                    : 'Tap the microphone to speak';
+        ? 'Listening…'
+        : isInterpreting
+        ? 'Understanding your request…'
+        : isExecuting
+        ? 'Working on it…'
+        : 'Tap the microphone to speak';
     final accountText = accountName == null || accountName!.trim().isEmpty
         ? 'Signed-in account'
         : roleLabel == null || roleLabel!.trim().isEmpty
-            ? accountName!
-            : '$accountName ($roleLabel)';
+        ? accountName!
+        : '$accountName ($roleLabel)';
 
     return Container(
       decoration: const BoxDecoration(
@@ -115,8 +115,9 @@ class VoiceAssistantScreen extends StatelessWidget {
                             border: Border.all(
                               color: voiceEnabled
                                   ? Colors.white.withValues(alpha: 0.12)
-                                  : const Color(0xFFFF8A80)
-                                      .withValues(alpha: 0.45),
+                                  : const Color(
+                                      0xFFFF8A80,
+                                    ).withValues(alpha: 0.45),
                             ),
                           ),
                           child: Column(
@@ -137,11 +138,11 @@ class VoiceAssistantScreen extends StatelessWidget {
                                   Expanded(
                                     child: Text(
                                       'Account: $accountText',
-                                      style:
-                                          theme.textTheme.labelMedium?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                     ),
                                   ),
                                   if (onOpenFamilySecurity != null)
@@ -164,10 +165,10 @@ class VoiceAssistantScreen extends StatelessWidget {
                               Text(
                                 voiceEnabled
                                     ? 'Commands are logged under your signed-in account. '
-                                        'Speaker/voice-print identity verification is NOT '
-                                        'implemented; door unlock via voice is disabled.'
+                                          'Speaker/voice-print identity verification is NOT '
+                                          'implemented; door unlock via voice is disabled.'
                                     : 'A household admin disabled voice commands for this '
-                                        'account. You can still review permissions in Security.',
+                                          'account. You can still review permissions in Security.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: Colors.white70,
                                   fontSize: 11.5,
@@ -193,8 +194,9 @@ class VoiceAssistantScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Say “Open living room” or “Open bedroom”, '
-                          'or choose a room below.',
+                          'Try “Turn on the light”, “Turn off the fan”, '
+                          '“Good morning”, or “I am going outside”. You can '
+                          'also say “Open living room” or “Open bedroom”.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.white60,
@@ -325,8 +327,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                         tooltip: !voiceEnabled
                             ? 'Voice commands disabled for this account'
                             : isListening
-                                ? 'Stop listening'
-                                : 'Start listening',
+                            ? 'Stop listening'
+                            : 'Start listening',
                         onPressed: isExecuting || !voiceEnabled
                             ? null
                             : onListenPressed,
@@ -341,8 +343,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                           !voiceEnabled
                               ? Icons.mic_off_rounded
                               : isListening
-                                  ? Icons.stop_rounded
-                                  : Icons.mic_rounded,
+                              ? Icons.stop_rounded
+                              : Icons.mic_rounded,
                           size: 28,
                         ),
                       ),
@@ -476,8 +478,9 @@ class _VoiceOrbState extends State<_VoiceOrb>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF50D6B6)
-                            .withValues(alpha: widget.isActive ? 0.42 : 0.22),
+                        color: const Color(
+                          0xFF50D6B6,
+                        ).withValues(alpha: widget.isActive ? 0.42 : 0.22),
                         blurRadius: 38,
                         spreadRadius: 8,
                       ),

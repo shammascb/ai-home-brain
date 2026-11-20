@@ -1,7 +1,10 @@
 {
-  "firestore": {
-    "rules": "firestore.rules"
-  },
+  "firestore": [
+    {
+      "database": "ai-studio-aihomebrain-98663c1f-43eb-4ecf-ab4f-fff5493858df",
+      "rules": "firestore.rules"
+    }
+  ],
   "emulators": {
     "firestore": {
       "port": 8080

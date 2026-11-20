@@ -140,8 +140,9 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final title =
-        widget.isDirectAdd ? 'Add authorized user' : 'Invite family member';
+    final title = widget.isDirectAdd
+        ? 'Add authorized user'
+        : 'Invite family member';
 
     return AlertDialog(
       title: Text(title),
@@ -157,10 +158,12 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
                 Text(
                   widget.isDirectAdd
                       ? 'Authorize a family member and choose what they can control from their signed-in account.'
-                      : 'Create an invitation tied to their email address and assigned permissions.',
+                      : 'Create an invite tied to their email and permissions. '
+                            'Share the code with them; they must sign in with that '
+                            'email and accept it in Family & Security.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
@@ -187,10 +190,9 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
                 const SizedBox(height: 14),
                 Text(
                   'Role preset',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 SegmentedButton<FamilyRole>(
@@ -222,10 +224,9 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
                   const SizedBox(height: 10),
                   Text(
                     _error!,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: Theme.of(context).colorScheme.error),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
               ],
@@ -244,8 +245,8 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
             _submitting
                 ? 'Saving…'
                 : widget.isDirectAdd
-                    ? 'Add user'
-                    : 'Create invite',
+                ? 'Add user'
+                : 'Create invite',
           ),
         ),
       ],
@@ -314,8 +315,8 @@ class _EditPermissionsDialogState extends State<_EditPermissionsDialog> {
               Text(
                 widget.member.email,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 12),
               SegmentedButton<FamilyRole>(
@@ -345,10 +346,9 @@ class _EditPermissionsDialogState extends State<_EditPermissionsDialog> {
                 const SizedBox(height: 10),
                 Text(
                   _error!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.error),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ],
             ],
@@ -420,8 +420,8 @@ class _JoinHouseholdDialogState extends State<_JoinHouseholdDialog> {
             Text(
               'Enter the invite code sent to ${widget.store.currentEmail} to link your authenticated account.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -437,10 +437,9 @@ class _JoinHouseholdDialogState extends State<_JoinHouseholdDialog> {
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: Theme.of(context).colorScheme.error),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ],
           ],
@@ -505,7 +504,7 @@ class _PermissionSwitches extends StatelessWidget {
           value: permissions.canUseVoiceCommands,
           onChanged: enabled
               ? (val) =>
-                  onChanged(permissions.copyWith(canUseVoiceCommands: val))
+                    onChanged(permissions.copyWith(canUseVoiceCommands: val))
               : null,
         ),
         SwitchListTile.adaptive(

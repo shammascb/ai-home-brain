@@ -29,15 +29,16 @@ class FamilyManagementStore extends ChangeNotifier {
     String initialLocalEmail = 'owner@home.local',
     FamilyRole initialLocalRole = FamilyRole.owner,
     FamilyPermissions? initialLocalPermissions,
-  })  : _firestore = firestore,
-        _auth = auth {
+  }) : _firestore = firestore,
+       _auth = auth {
     if (_firestore == null) {
       _seedLocalState(
         uid: initialLocalUid,
         displayName: initialLocalName,
         email: initialLocalEmail,
         role: initialLocalRole,
-        permissions: initialLocalPermissions ??
+        permissions:
+            initialLocalPermissions ??
             FamilyPermissions.forRole(initialLocalRole),
       );
     } else {
@@ -108,13 +109,11 @@ class FamilyManagementStore extends ChangeNotifier {
 
   List<FamilyInvite> get outgoingInvites => List.unmodifiable(_outgoingInvites);
   List<FamilyInvite> get pendingOutgoingInvites => List.unmodifiable(
-        _outgoingInvites
-            .where((invite) => invite.status == InviteStatus.pending),
-      );
+    _outgoingInvites.where((invite) => invite.status == InviteStatus.pending),
+  );
   List<FamilyInvite> get incomingInvites => List.unmodifiable(
-        _incomingInvites
-            .where((invite) => invite.status == InviteStatus.pending),
-      );
+    _incomingInvites.where((invite) => invite.status == InviteStatus.pending),
+  );
   List<FamilyActivityEntry> get activities => List.unmodifiable(_activities);
 
   FamilyMember? get currentMember {
@@ -225,8 +224,9 @@ class FamilyManagementStore extends ChangeNotifier {
         : (emailPrefix.isNotEmpty ? emailPrefix : 'Home member');
 
     _currentUid = user.uid;
-    _currentName =
-        displayName.length > 100 ? displayName.substring(0, 100) : displayName;
+    _currentName = displayName.length > 100
+        ? displayName.substring(0, 100)
+        : displayName;
     _currentEmail = email.length >= 3 ? email : 'member@home.local';
     _currentEmailVerified = user.emailVerified;
     _currentProviderIds = user.providerData.map((p) => p.providerId).toList();
@@ -272,15 +272,16 @@ class FamilyManagementStore extends ChangeNotifier {
       return _bootstrapFuture!;
     }
     _bootstrapUid = user.uid;
-    final future = _bootstrapAndSubscribe(
-      db,
-      user,
-      forceTokenRefresh: forceTokenRefresh,
-    ).whenComplete(() {
-      if (_bootstrapUid == user.uid) {
-        _bootstrapFuture = null;
-      }
-    });
+    final future =
+        _bootstrapAndSubscribe(
+          db,
+          user,
+          forceTokenRefresh: forceTokenRefresh,
+        ).whenComplete(() {
+          if (_bootstrapUid == user.uid) {
+            _bootstrapFuture = null;
+          }
+        });
     _bootstrapFuture = future;
     return future;
   }
@@ -343,8 +344,9 @@ class FamilyManagementStore extends ChangeNotifier {
           }
           final rawName = ((homeData['name'] as String?) ?? '').trim();
           if (rawName.isNotEmpty) {
-            _homeName =
-                rawName.length > 80 ? rawName.substring(0, 80) : rawName;
+            _homeName = rawName.length > 80
+                ? rawName.substring(0, 80)
+                : rawName;
           }
           final rawUids = homeData['memberUids'];
           if (rawUids is List) {
@@ -377,8 +379,10 @@ class FamilyManagementStore extends ChangeNotifier {
       if (error is FirebaseException) {
         _lastBootstrapErrorDetail =
             '${error.code} at $currentPath${error.message != null ? ': ${error.message}' : ''}';
-        _syncNotice =
-            'Could not sync family settings (${error.code}). Tap Retry to reconnect.';
+        _syncNotice = error.code == 'permission-denied'
+            ? 'Firestore rules blocked family sync. Publish the app rules to its '
+                  'database, then tap Retry.'
+            : 'Could not sync family settings (${error.code}). Tap Retry to reconnect.';
       } else {
         _lastBootstrapErrorDetail = error.toString();
         _syncNotice = 'Could not sync family settings. Tap Retry to reconnect.';
@@ -483,8 +487,8 @@ class FamilyManagementStore extends ChangeNotifier {
         existingHome.exists &&
         existingHomeData != null) {
       final ownerId = (existingHomeData['ownerId'] as String?) ?? user.uid;
-      final name =
-          ((existingHomeData['name'] as String?) ?? 'My Smart Home').trim();
+      final name = ((existingHomeData['name'] as String?) ?? 'My Smart Home')
+          .trim();
       _homeOwnerId = ownerId;
       _homeName = name.isEmpty
           ? 'My Smart Home'
@@ -620,106 +624,109 @@ class FamilyManagementStore extends ChangeNotifier {
         .where('viewerUids', arrayContains: user.uid)
         .snapshots()
         .listen(
-      (snapshot) {
-        final loaded = snapshot.docs
-            .map((doc) => FamilyMember.fromMap(doc.data(), doc.id))
-            .toList()
-          ..sort((a, b) {
-            if (a.isPrimaryOwner != b.isPrimaryOwner) {
-              return a.isPrimaryOwner ? -1 : 1;
-            }
-            return a.displayName.toLowerCase().compareTo(
-                  b.displayName.toLowerCase(),
-                );
-          });
-        _members = loaded;
-        notifyListeners();
-      },
-      onError: (Object error) {
-        handleFirestoreError(
-          error: error,
-          operationType: OperationType.list,
-          path: 'homes/$targetHomeId/members',
-          currentUser: user,
+          (snapshot) {
+            final loaded =
+                snapshot.docs
+                    .map((doc) => FamilyMember.fromMap(doc.data(), doc.id))
+                    .toList()
+                  ..sort((a, b) {
+                    if (a.isPrimaryOwner != b.isPrimaryOwner) {
+                      return a.isPrimaryOwner ? -1 : 1;
+                    }
+                    return a.displayName.toLowerCase().compareTo(
+                      b.displayName.toLowerCase(),
+                    );
+                  });
+            _members = loaded;
+            notifyListeners();
+          },
+          onError: (Object error) {
+            handleFirestoreError(
+              error: error,
+              operationType: OperationType.list,
+              path: 'homes/$targetHomeId/members',
+              currentUser: user,
+            );
+          },
         );
-      },
-    );
 
     _outgoingInvitesSub = db
         .collection('homeInvites')
         .where('homeOwnerId', isEqualTo: user.uid)
         .snapshots()
         .listen(
-      (snapshot) {
-        final loaded = snapshot.docs
-            .map((doc) => FamilyInvite.fromMap(doc.data(), doc.id))
-            .where((invite) => invite.homeId == targetHomeId)
-            .toList()
-          ..sort(
-            (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
-              a.createdAt ?? DateTime(2000),
-            ),
-          );
-        _outgoingInvites = loaded;
-        notifyListeners();
-      },
-      onError: (Object error) {
-        handleFirestoreError(
-          error: error,
-          operationType: OperationType.list,
-          path: 'homeInvites',
-          currentUser: user,
+          (snapshot) {
+            final loaded =
+                snapshot.docs
+                    .map((doc) => FamilyInvite.fromMap(doc.data(), doc.id))
+                    .where((invite) => invite.homeId == targetHomeId)
+                    .toList()
+                  ..sort(
+                    (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
+                      a.createdAt ?? DateTime(2000),
+                    ),
+                  );
+            _outgoingInvites = loaded;
+            notifyListeners();
+          },
+          onError: (Object error) {
+            handleFirestoreError(
+              error: error,
+              operationType: OperationType.list,
+              path: 'homeInvites',
+              currentUser: user,
+            );
+          },
         );
-      },
-    );
 
     _incomingInvitesSub = db
         .collection('homeInvites')
         .where('invitedEmail', isEqualTo: _currentEmail)
         .snapshots()
         .listen(
-      (snapshot) {
-        final loaded = snapshot.docs
-            .map((doc) => FamilyInvite.fromMap(doc.data(), doc.id))
-            .where((invite) => invite.status == InviteStatus.pending)
-            .toList();
-        _incomingInvites = loaded;
-        notifyListeners();
-      },
-      onError: (Object error) {
-        handleFirestoreError(
-          error: error,
-          operationType: OperationType.list,
-          path: 'homeInvites',
-          currentUser: user,
+          (snapshot) {
+            final loaded = snapshot.docs
+                .map((doc) => FamilyInvite.fromMap(doc.data(), doc.id))
+                .where((invite) => invite.status == InviteStatus.pending)
+                .toList();
+            _incomingInvites = loaded;
+            notifyListeners();
+          },
+          onError: (Object error) {
+            handleFirestoreError(
+              error: error,
+              operationType: OperationType.list,
+              path: 'homeInvites',
+              currentUser: user,
+            );
+          },
         );
-      },
-    );
 
     _activitiesSub = homeRef
         .collection('activityLogs')
         .where('viewerUids', arrayContains: user.uid)
         .snapshots()
         .listen(
-      (snapshot) {
-        final loaded = snapshot.docs
-            .map(
-              (doc) => FamilyActivityEntry.fromMap(doc.data(), doc.id),
-            )
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        _activities = loaded.take(80).toList();
-        notifyListeners();
-      },
-      onError: (Object error) {
-        handleFirestoreError(
-          error: error,
-          operationType: OperationType.list,
-          path: 'homes/$targetHomeId/activityLogs',
-          currentUser: user,
+          (snapshot) {
+            final loaded =
+                snapshot.docs
+                    .map(
+                      (doc) => FamilyActivityEntry.fromMap(doc.data(), doc.id),
+                    )
+                    .toList()
+                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            _activities = loaded.take(80).toList();
+            notifyListeners();
+          },
+          onError: (Object error) {
+            handleFirestoreError(
+              error: error,
+              operationType: OperationType.list,
+              path: 'homes/$targetHomeId/activityLogs',
+              currentUser: user,
+            );
+          },
         );
-      },
-    );
   }
 
   Future<void> refreshAccountSecurityStatus() async {
@@ -787,8 +794,9 @@ class FamilyManagementStore extends ChangeNotifier {
 
     final code = generateInviteCode();
     final safePermissions = permissions.copyWith(
-      canManageFamily:
-          role == FamilyRole.guest ? false : permissions.canManageFamily,
+      canManageFamily: role == FamilyRole.guest
+          ? false
+          : permissions.canManageFamily,
     );
 
     final db = _firestore;
@@ -1124,10 +1132,10 @@ class FamilyManagementStore extends ChangeNotifier {
           .collection('members')
           .doc(memberId)
           .update({
-        'role': role.name,
-        ...permissions.toMap(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'role': role.name,
+            ...permissions.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       await recordActivity(
         actionTitle: 'Updated permissions for ${target.displayName}',
         detail: 'Role: ${role.label} · ${permissions.activeLabels.join(", ")}',
@@ -1521,8 +1529,9 @@ class FamilyManagementStore extends ChangeNotifier {
   }) async {
     final safeTitle = actionTitle.trim();
     if (safeTitle.isEmpty) return;
-    final clippedTitle =
-        safeTitle.length > 160 ? safeTitle.substring(0, 160) : safeTitle;
+    final clippedTitle = safeTitle.length > 160
+        ? safeTitle.substring(0, 160)
+        : safeTitle;
     final trimmedDetail = detail.trim();
     final clippedDetail = trimmedDetail.length > 320
         ? trimmedDetail.substring(0, 320)
@@ -1560,19 +1569,19 @@ class FamilyManagementStore extends ChangeNotifier {
           .collection('activityLogs')
           .doc(logId)
           .set({
-        'logId': logId,
-        'homeId': _homeId,
-        'actorUid': user.uid,
-        'actorName': _currentName,
-        'actorEmail': _currentEmail,
-        'actorRole': currentRole.name,
-        'actionTitle': clippedTitle,
-        'detail': clippedDetail,
-        'category': category.name,
-        'source': source.name,
-        'viewerUids': viewerUids,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'logId': logId,
+            'homeId': _homeId,
+            'actorUid': user.uid,
+            'actorName': _currentName,
+            'actorEmail': _currentEmail,
+            'actorRole': currentRole.name,
+            'actionTitle': clippedTitle,
+            'detail': clippedDetail,
+            'category': category.name,
+            'source': source.name,
+            'viewerUids': viewerUids,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
     } catch (error) {
       handleFirestoreError(
         error: error,
