@@ -301,14 +301,13 @@ class AutomationsScreen extends StatelessWidget {
                               children: [
                                 if (onBackToHome != null)
                                   Material(
-                                    color: Colors.white,
+                                    color: theme.colorScheme.surface,
                                     shape: const CircleBorder(),
                                     child: IconButton(
                                       tooltip: 'Back to Home',
                                       onPressed: onBackToHome,
                                       icon: const Icon(
                                         Icons.chevron_left_rounded,
-                                        color: Colors.black87,
                                       ),
                                       constraints:
                                           const BoxConstraints.tightFor(
@@ -578,6 +577,8 @@ class _HeroRoutineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final foreground = isActive ? colors.onPrimaryContainer : colors.onSurface;
     final summary = [
       if (routine.lightAction != BinaryDeviceAction.unchanged)
         routine.lightSummary,
@@ -592,9 +593,16 @@ class _HeroRoutineCard extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Material(
           color: isActive
-              ? Colors.white.withValues(alpha: 0.92)
-              : Colors.white.withValues(alpha: 0.78),
-          borderRadius: BorderRadius.circular(22),
+              ? colors.primaryContainer
+              : colors.surface.withValues(alpha: 0.96),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: BorderSide(
+              color: isActive
+                  ? colors.primary.withValues(alpha: 0.42)
+                  : colors.outlineVariant.withValues(alpha: 0.3),
+            ),
+          ),
           child: InkWell(
             onTap: onTapCard,
             borderRadius: BorderRadius.circular(22),
@@ -608,16 +616,16 @@ class _HeroRoutineCard extends StatelessWidget {
                       Switch.adaptive(
                         value: isActive,
                         onChanged: (_) => onToggleSwitch(),
-                        activeTrackColor: const Color(0xFFFF5A00),
-                        activeThumbColor: Colors.white,
-                        inactiveTrackColor: Colors.black87,
-                        inactiveThumbColor: Colors.white,
+                        activeTrackColor: colors.primary,
+                        activeThumbColor: colors.onPrimary,
+                        inactiveTrackColor: colors.surfaceContainerHighest,
+                        inactiveThumbColor: colors.onSurfaceVariant,
                       ),
                       const Spacer(),
                       Icon(
                         Icons.tune_rounded,
                         size: 18,
-                        color: Colors.black.withValues(alpha: 0.55),
+                        color: colors.onSurfaceVariant,
                       ),
                     ],
                   ),
@@ -627,7 +635,7 @@ class _HeroRoutineCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.black87,
+                      color: foreground,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -637,7 +645,9 @@ class _HeroRoutineCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.black.withValues(alpha: 0.65),
+                      color: isActive
+                          ? colors.onPrimaryContainer.withValues(alpha: 0.8)
+                          : colors.onSurfaceVariant,
                       height: 1.3,
                     ),
                   ),
@@ -658,21 +668,22 @@ class _DashedAddRoutineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return CustomPaint(
       painter: _DashedRoundedRectPainter(
-        color: Colors.white.withValues(alpha: 0.42),
+        color: colors.primary.withValues(alpha: 0.68),
         radius: 22,
       ),
       child: Material(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: colors.primary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(22),
-          child: const Tooltip(
+          child: Tooltip(
             message: 'Customize routine devices',
             child: Center(
-              child: Icon(Icons.add_rounded, color: Colors.white, size: 28),
+              child: Icon(Icons.add_rounded, color: colors.primary, size: 28),
             ),
           ),
         ),

@@ -51,6 +51,7 @@ class VoiceAssistantScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final status = !voiceEnabled
         ? 'Voice commands disabled for this account'
         : isListening
@@ -67,11 +68,15 @@ class VoiceAssistantScreen extends StatelessWidget {
         : '$accountName ($roleLabel)';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF0B1715), Color(0xFF07100F), Color(0xFF050807)],
+          colors: [
+            theme.scaffoldBackgroundColor,
+            colors.surface,
+            theme.scaffoldBackgroundColor,
+          ],
         ),
       ),
       child: SafeArea(
@@ -98,7 +103,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                         Text(
                           'Voice assistant',
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
+                            color: colors.onSurface,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -110,14 +115,14 @@ class VoiceAssistantScreen extends StatelessWidget {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
+                            color: colors.surface.withValues(alpha: 0.94),
                             borderRadius: BorderRadius.circular(14),
                             border: Border.all(
                               color: voiceEnabled
-                                  ? Colors.white.withValues(alpha: 0.12)
-                                  : const Color(
-                                      0xFFFF8A80,
-                                    ).withValues(alpha: 0.45),
+                                  ? colors.outlineVariant.withValues(
+                                      alpha: 0.38,
+                                    )
+                                  : colors.error.withValues(alpha: 0.45),
                             ),
                           ),
                           child: Column(
@@ -131,8 +136,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                                         : Icons.mic_off_rounded,
                                     size: 16,
                                     color: voiceEnabled
-                                        ? const Color(0xFF73E6C7)
-                                        : const Color(0xFFFF8A80),
+                                        ? colors.primary
+                                        : colors.error,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -140,7 +145,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                                       'Account: $accountText',
                                       style: theme.textTheme.labelMedium
                                           ?.copyWith(
-                                            color: Colors.white,
+                                            color: colors.onSurface,
                                             fontWeight: FontWeight.w600,
                                           ),
                                     ),
@@ -149,9 +154,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                                     TextButton(
                                       onPressed: onOpenFamilySecurity,
                                       style: TextButton.styleFrom(
-                                        foregroundColor: const Color(
-                                          0xFF73E6C7,
-                                        ),
+                                        foregroundColor: colors.primary,
                                         visualDensity: VisualDensity.compact,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
@@ -164,14 +167,12 @@ class VoiceAssistantScreen extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 voiceEnabled
-                                    ? 'Commands are logged under your signed-in account. '
-                                          'Speaker/voice-print identity verification is NOT '
-                                          'implemented; door unlock via voice is disabled.'
+                                    ? 'Commands use your signed-in account. Voice identity checks are not enabled; voice cannot unlock the door.'
                                     : 'A household admin disabled voice commands for this '
                                           'account. You can still review permissions in Security.',
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.white70,
-                                  fontSize: 11.5,
+                                  color: colors.onSurfaceVariant,
+                                  fontSize: 12,
                                   height: 1.35,
                                 ),
                               ),
@@ -188,7 +189,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                           status,
                           textAlign: TextAlign.center,
                           style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
+                            color: colors.onSurface,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -199,7 +200,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                           'also say “Open living room” or “Open bedroom”.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white60,
+                            color: colors.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -214,8 +215,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                                 ),
                                 label: const Text('Living Room'),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white30),
+                                  foregroundColor: colors.onSurface,
+                                  side: BorderSide(color: colors.outlineVariant),
                                 ),
                               ),
                             ),
@@ -226,8 +227,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                                 icon: const Icon(Icons.bed_outlined, size: 18),
                                 label: const Text('Bedroom'),
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.white,
-                                  side: const BorderSide(color: Colors.white30),
+                                  foregroundColor: colors.onSurface,
+                                  side: BorderSide(color: colors.outlineVariant),
                                 ),
                               ),
                             ),
@@ -297,7 +298,7 @@ class VoiceAssistantScreen extends StatelessWidget {
                                   Text(
                                     'Voice commands cannot unlock the door.',
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                      color: Colors.white60,
+                                      color: colors.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -310,8 +311,8 @@ class VoiceAssistantScreen extends StatelessWidget {
                           icon: const Icon(Icons.meeting_room_outlined),
                           label: const Text('Rooms'),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white30),
+                            foregroundColor: colors.onSurface,
+                            side: BorderSide(color: colors.outlineVariant),
                           ),
                         ),
                       ],
@@ -333,10 +334,11 @@ class VoiceAssistantScreen extends StatelessWidget {
                             ? null
                             : onListenPressed,
                         style: IconButton.styleFrom(
-                          backgroundColor: const Color(0xFF73E6C7),
-                          foregroundColor: const Color(0xFF06201A),
-                          disabledBackgroundColor: Colors.white12,
-                          disabledForegroundColor: Colors.white38,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
+                          disabledBackgroundColor:
+                              colors.surfaceContainerHighest,
+                          disabledForegroundColor: colors.onSurfaceVariant,
                           fixedSize: const Size(64, 64),
                         ),
                         icon: Icon(
@@ -353,9 +355,9 @@ class VoiceAssistantScreen extends StatelessWidget {
                         tooltip: 'Clear voice response',
                         onPressed: isExecuting ? null : onClear,
                         style: IconButton.styleFrom(
-                          foregroundColor: Colors.white70,
+                          foregroundColor: colors.onSurfaceVariant,
                           fixedSize: const Size(52, 52),
-                          side: const BorderSide(color: Colors.white24),
+                          side: BorderSide(color: colors.outlineVariant),
                         ),
                         icon: const Icon(Icons.close_rounded),
                       ),
@@ -384,16 +386,17 @@ class _AssistantMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.07),
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isError
-              ? const Color(0xFFFF7777).withValues(alpha: 0.4)
-              : Colors.white.withValues(alpha: 0.1),
+              ? colors.error.withValues(alpha: 0.4)
+              : colors.outlineVariant.withValues(alpha: 0.32),
         ),
       ),
       child: Column(
@@ -401,8 +404,8 @@ class _AssistantMessage extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF73E6C7),
+            style: TextStyle(
+              color: colors.primary,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -411,7 +414,7 @@ class _AssistantMessage extends StatelessWidget {
           Text(
             message,
             style: TextStyle(
-              color: isError ? const Color(0xFFFFA0A0) : Colors.white,
+              color: isError ? colors.error : colors.onSurface,
             ),
           ),
         ],
@@ -455,6 +458,7 @@ class _VoiceOrbState extends State<_VoiceOrb>
       animation: _animationController,
       builder: (context, child) {
         final pulse = _animationController.value;
+        final colors = Theme.of(context).colorScheme;
         return Transform.scale(
           scale: widget.isActive ? 0.98 + pulse * 0.04 : 1,
           child: SizedBox(
@@ -463,9 +467,9 @@ class _VoiceOrbState extends State<_VoiceOrb>
             child: CustomPaint(
               painter: _VoiceOrbPainter(
                 phase: pulse,
-                color: widget.isActive
-                    ? const Color(0xFF69F0CB)
-                    : const Color(0xFF36B99A),
+                color: colors.primary.withValues(
+                  alpha: widget.isActive ? 0.88 : 0.58,
+                ),
               ),
               child: Center(
                 child: Container(
@@ -473,25 +477,28 @@ class _VoiceOrbState extends State<_VoiceOrb>
                   height: 112,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      colors: [Color(0xFF1E806D), Color(0xFF0D302A)],
+                    gradient: RadialGradient(
+                      colors: [
+                        colors.primaryContainer,
+                        colors.surfaceContainerHighest,
+                      ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(
-                          0xFF50D6B6,
-                        ).withValues(alpha: widget.isActive ? 0.42 : 0.22),
+                        color: colors.primary.withValues(
+                          alpha: widget.isActive ? 0.36 : 0.18,
+                        ),
                         blurRadius: 38,
                         spreadRadius: 8,
                       ),
                     ],
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
+                      color: colors.outlineVariant.withValues(alpha: 0.42),
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.graphic_eq_rounded,
-                    color: Color(0xFF9CF7DF),
+                    color: colors.onPrimaryContainer,
                     size: 54,
                   ),
                 ),

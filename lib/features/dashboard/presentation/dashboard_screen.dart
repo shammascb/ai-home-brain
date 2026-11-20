@@ -1043,6 +1043,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         appBar: _selectedNavigationIndex == 2 || _selectedNavigationIndex == 3
             ? null
             : AppBar(
+                title: const Text('AI Home Brain'),
                 actions: [
                   IconButton(
                     tooltip: 'Device Monitoring',
@@ -1198,7 +1199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               style: theme
                                                   .textTheme.headlineMedium
                                                   ?.copyWith(
-                                                fontWeight: FontWeight.w800,
+                                                fontWeight: FontWeight.w700,
                                                 letterSpacing: -0.8,
                                               ),
                                             ),
@@ -1221,7 +1222,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 28),
+                                  const SizedBox(height: 24),
                                   KeyedSubtree(
                                     key: _scenesSectionKey,
                                     child: Column(
@@ -1264,7 +1265,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 26),
+                                  const SizedBox(height: 20),
                                   KeyedSubtree(
                                     key: _devicesSectionKey,
                                     child: Column(
@@ -1318,7 +1319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 26),
+                                  const SizedBox(height: 20),
                                   _VoiceAssistantCard(
                                     isListening: _isListening,
                                     isInterpreting: _isInterpretingVoiceCommand,
@@ -1344,7 +1345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       FamilySectionTab.security,
                                     ),
                                   ),
-                                  const SizedBox(height: 26),
+                                  const SizedBox(height: 20),
                                   _DashboardSectionTitle(
                                     title: 'Family & Access',
                                     onViewAll: () => _openFamilyManagement(),
@@ -1361,7 +1362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       FamilySectionTab.security,
                                     ),
                                   ),
-                                  const SizedBox(height: 26),
+                                  const SizedBox(height: 20),
                                   _DashboardSectionTitle(
                                     title: 'Recent Activity',
                                     onViewAll: () => _openFamilyManagement(
@@ -1510,18 +1511,30 @@ class _DevicesPage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 22),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (final room in _rooms)
-                    ChoiceChip(
-                      label: Text(room),
-                      selected: selectedRoom == room,
-                      onSelected: (_) => onRoomSelected(room),
-                    ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 720 ? 4 : 2;
+                  const spacing = 8.0;
+                  final itemWidth =
+                      (constraints.maxWidth - spacing * (columns - 1)) /
+                          columns;
+                  return Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: [
+                      for (final room in _rooms)
+                        SizedBox(
+                          width: itemWidth,
+                          height: 46,
+                          child: _RoomFilterButton(
+                            label: room,
+                            selected: selectedRoom == room,
+                            onTap: () => onRoomSelected(room),
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 18),
               _DeviceGrid(
@@ -1552,6 +1565,64 @@ class _DevicesPage extends StatelessWidget {
   }
 }
 
+class _RoomFilterButton extends StatelessWidget {
+  const _RoomFilterButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final foreground = selected ? colors.onPrimaryContainer : colors.onSurface;
+
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: selected
+              ? colors.primary.withValues(alpha: 0.38)
+              : colors.outlineVariant.withValues(alpha: 0.28),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (selected) ...[
+                Icon(Icons.check_rounded, size: 16, color: colors.primary),
+                const SizedBox(width: 6),
+              ],
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _DashboardSectionTitle extends StatelessWidget {
   const _DashboardSectionTitle({required this.title, this.onViewAll});
 
@@ -1567,9 +1638,9 @@ class _DashboardSectionTitle extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.2,
             ),
           ),
         ),
@@ -1753,20 +1824,24 @@ class _DeviceGrid extends StatelessWidget {
           value: state.fanOn,
           onChanged: onFanChanged,
         ),
-        extra: Text('Speed ${state.fanSpeed} of 5 · Simulated'),
-        action: Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: onBedroomPressed,
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              minimumSize: const Size(0, 30),
-            ),
-            icon: const Icon(Icons.arrow_forward_rounded, size: 15),
-            label: const Text('Open Bedroom'),
-          ),
-        ),
+        extra: singleColumn
+            ? Text('Speed ${state.fanSpeed} of 5 · Simulated')
+            : null,
+        action: singleColumn
+            ? Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: onBedroomPressed,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 30),
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 15),
+                  label: const Text('Open Bedroom'),
+                ),
+              )
+            : null,
       ),
       _DeviceCard(
         title: 'Door',
@@ -1877,7 +1952,7 @@ class _DeviceCard extends StatelessWidget {
         children: [
           if (imageAsset != null)
             SizedBox(
-              height: 132,
+                height: 100,
               width: double.infinity,
               child: Image.asset(imageAsset!, fit: BoxFit.cover),
             ),
@@ -1996,36 +2071,91 @@ class _AutomationModes extends StatelessWidget {
       ('Morning', Icons.wb_sunny_outlined),
     ];
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final (label, icon) in modes)
-          ChoiceChip(
-            avatar: Icon(
-              icon,
-              size: 16,
-              color: selectedMode == label
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
-            ),
-            label: Text(label),
-            selected: selectedMode == label,
-            selectedColor: colorScheme.primary,
-            backgroundColor: colorScheme.surface,
-            labelStyle: TextStyle(
-              color: selectedMode == label
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-            onSelected: (_) => onSelected(label),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            side: BorderSide.none,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 720 ? 4 : 2;
+        const spacing = 10.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final (label, icon) in modes)
+              SizedBox(
+                width: itemWidth,
+                height: 54,
+                child: _SceneModeButton(
+                  label: label,
+                  icon: icon,
+                  selected: selectedMode == label,
+                  onTap: () => onSelected(label),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SceneModeButton extends StatelessWidget {
+  const _SceneModeButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final foreground = selected ? colors.onPrimaryContainer : colors.onSurface;
+
+    return Material(
+      color: selected ? colors.primaryContainer : colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: selected
+              ? colors.primary.withValues(alpha: 0.38)
+              : colors.outlineVariant.withValues(alpha: 0.28),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 19, color: selected ? colors.primary : colors.onSurfaceVariant),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.check_rounded, size: 16, color: colors.primary),
+              ],
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }
@@ -2349,13 +2479,50 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return ListTile(
-      leading: Icon(icon, color: colorScheme.primary),
-      title: Text(title, style: Theme.of(context).textTheme.bodyMedium),
-      subtitle: Text(time),
-      dense: true,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: colorScheme.primary, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  time,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
