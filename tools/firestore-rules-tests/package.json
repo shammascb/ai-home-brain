@@ -1,0 +1,16 @@
+{
+  "name": "ai-home-brain-firestore-rules-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --config ../../firebase.json --project demo-ai-home-brain --only firestore \"node rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.4.0",
+    "firebase-tools": "^15.37.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.7"
+  }
+}

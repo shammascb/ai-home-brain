@@ -1,0 +1,78 @@
+name: Deploy Flutter Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tools/firestore-rules-tests/package-lock.json
+
+      - name: Setup Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Firestore rules test tools
+        run: npm ci --prefix tools/firestore-rules-tests
+
+      - name: Test Firestore security rules
+        run: npm --prefix tools/firestore-rules-tests test
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze & test
+        run: |
+          flutter analyze
+          flutter test
+
+      - name: Build Flutter web app
+        run: flutter build web --release --base-href /ai-home-brain/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
