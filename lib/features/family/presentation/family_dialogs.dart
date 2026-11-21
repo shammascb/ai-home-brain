@@ -145,95 +145,96 @@ class _MemberFormDialogState extends State<_MemberFormDialog> {
         : 'Invite family member';
 
     return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Text(title),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
-        child: SingleChildScrollView(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.isDirectAdd
-                      ? 'Authorize a family member and choose what they can control from their signed-in account.'
-                      : 'Create an invite tied to their email and permissions. '
-                            'Share the code with them; they must sign in with that '
-                            'email and accept it in Family & Security.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.isDirectAdd
+                    ? 'Authorize a family member and choose what they can control from their signed-in account.'
+                    : 'Create an invite tied to their email and permissions. '
+                          'Share the code with them; they must sign in with that '
+                          'email and accept it in Family & Security.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Full name',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                validator: validateFamilyDisplayName,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email address',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                validator: validateFamilyEmail,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Role preset',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<FamilyRole>(
+                segments: const [
+                  ButtonSegment(
+                    value: FamilyRole.adult,
+                    label: Text('Adult'),
+                    icon: Icon(Icons.person_outline_rounded, size: 17),
                   ),
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  validator: validateFamilyDisplayName,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  validator: validateFamilyEmail,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Role preset',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                SegmentedButton<FamilyRole>(
-                  segments: const [
-                    ButtonSegment(
-                      value: FamilyRole.adult,
-                      label: Text('Adult'),
-                      icon: Icon(Icons.person_outline_rounded, size: 17),
-                    ),
-                    ButtonSegment(
-                      value: FamilyRole.guest,
-                      label: Text('Guest'),
-                      icon: Icon(Icons.badge_outlined, size: 17),
-                    ),
-                  ],
-                  selected: {_role},
-                  onSelectionChanged: _submitting
-                      ? null
-                      : (selection) => _selectRole(selection.first),
-                ),
-                const SizedBox(height: 12),
-                _PermissionSwitches(
-                  permissions: _permissions,
-                  allowAdminToggle: _role == FamilyRole.adult,
-                  enabled: !_submitting,
-                  onChanged: (next) => setState(() => _permissions = next),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    _error!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                  ButtonSegment(
+                    value: FamilyRole.guest,
+                    label: Text('Guest'),
+                    icon: Icon(Icons.badge_outlined, size: 17),
                   ),
                 ],
+                selected: {_role},
+                onSelectionChanged: _submitting
+                    ? null
+                    : (selection) => _selectRole(selection.first),
+              ),
+              const SizedBox(height: 12),
+              _PermissionSwitches(
+                permissions: _permissions,
+                allowAdminToggle: _role == FamilyRole.adult,
+                enabled: !_submitting,
+                onChanged: (next) => setState(() => _permissions = next),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.of(context).pop(),
@@ -304,57 +305,58 @@ class _EditPermissionsDialogState extends State<_EditPermissionsDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Text('Permissions · ${widget.member.displayName}'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.member.email,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.member.email,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              const SizedBox(height: 12),
-              SegmentedButton<FamilyRole>(
-                segments: const [
-                  ButtonSegment(value: FamilyRole.adult, label: Text('Adult')),
-                  ButtonSegment(value: FamilyRole.guest, label: Text('Guest')),
-                ],
-                selected: {_role},
-                onSelectionChanged: _saving
-                    ? null
-                    : (selection) {
-                        final role = selection.first;
-                        setState(() {
-                          _role = role;
-                          _permissions = FamilyPermissions.forRole(role);
-                        });
-                      },
-              ),
-              const SizedBox(height: 12),
-              _PermissionSwitches(
-                permissions: _permissions,
-                allowAdminToggle: _role == FamilyRole.adult,
-                enabled: !_saving,
-                onChanged: (next) => setState(() => _permissions = next),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 10),
-                Text(
-                  _error!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<FamilyRole>(
+              segments: const [
+                ButtonSegment(value: FamilyRole.adult, label: Text('Adult')),
+                ButtonSegment(value: FamilyRole.guest, label: Text('Guest')),
               ],
+              selected: {_role},
+              onSelectionChanged: _saving
+                  ? null
+                  : (selection) {
+                      final role = selection.first;
+                      setState(() {
+                        _role = role;
+                        _permissions = FamilyPermissions.forRole(role);
+                      });
+                    },
+            ),
+            const SizedBox(height: 12),
+            _PermissionSwitches(
+              permissions: _permissions,
+              allowAdminToggle: _role == FamilyRole.adult,
+              enabled: !_saving,
+              onChanged: (next) => setState(() => _permissions = next),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _error!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       actions: [
         TextButton(
           onPressed: _saving ? null : () => Navigator.of(context).pop(),
@@ -410,6 +412,8 @@ class _JoinHouseholdDialogState extends State<_JoinHouseholdDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Join household with code'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -445,6 +449,7 @@ class _JoinHouseholdDialogState extends State<_JoinHouseholdDialog> {
           ],
         ),
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.of(context).pop(),
