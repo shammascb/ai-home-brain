@@ -2063,7 +2063,6 @@ class _AutomationModes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     const modes = [
       ('Home', Icons.home_outlined),
       ('Away', Icons.directions_walk_outlined),

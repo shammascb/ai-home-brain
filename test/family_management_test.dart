@@ -372,7 +372,7 @@ void main() {
         expect(find.text('Account: Alex Guest (Guest)'), findsOneWidget);
         expect(
           find.textContaining(
-            'Speaker/voice-print identity verification is NOT',
+            'Voice identity checks are not enabled; voice cannot unlock the door.',
           ),
           findsOneWidget,
         );

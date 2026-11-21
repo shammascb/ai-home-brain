@@ -4,3 +4,4 @@ analyzer:
     - web/**
     - android/**
     - ios/**
+    - tools/firestore-rules-tests/node_modules/**
