@@ -135,8 +135,9 @@ flutter build web --release --base-href /ai-home-brain/
 
 Review [`architecture.md`](architecture.md) for completed, simulated, and
 unfinished features. In particular, hardware, push notifications, speaker
-verification, scheduled routines, web App Check, and iOS Firebase setup remain
-unfinished. Do not describe any of these as connected.
+verification, scheduled routines, and web App Check remain unfinished. iOS
+Firebase setup requires the local plist and Firebase App Check registration.
+Do not describe simulated hardware as connected.
 
 ## Short presentation outline
 
@@ -148,7 +149,7 @@ unfinished. Do not describe any of these as connected.
    voice-unlock block, closed-door check before routine locking, and command
    results that distinguish simulation from hardware.
 4. **Limitations:** no physical ESP32, no push delivery, no voice identity
-   verification, and iOS Firebase setup is pending.
+   verification, and local iOS Firebase/App Check configuration is required.
 5. **Next step:** build the authenticated TLS hardware backend and ESP32
    firmware, then test command acknowledgement, offline behavior, and access
    rules before connecting any real lock.

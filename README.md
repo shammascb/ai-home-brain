@@ -43,8 +43,29 @@ flutter run -d web-server --web-hostname 0.0.0.0 --web-port 3000
 For Android, add the Firebase Android client configuration at
 `android/app/google-services.json`, enable Email/Password and Google providers
 in Firebase Authentication, and configure the Android app in your Firebase
-project. Do not commit service-account credentials. iOS Firebase setup is not
-included yet.
+project. Do not commit service-account credentials. iOS also needs its app
+configuration in Firebase before it can connect to the backend.
+
+### iOS setup
+
+The iOS app is registered in Firebase as `Home Brain iOS` with bundle ID
+`com.example.aiHomeBrain`. This checkout uses Xcode 16.4 with CocoaPods for
+Flutter plugins and Firebase's compatible CocoaPods SDK. Install the iOS
+platform support, then add the Firebase iOS config at
+`ios/Runner/GoogleService-Info.plist`. That local config is intentionally
+ignored by Git; the Xcode project already includes it in the Runner target.
+Download the file separately on each Mac that builds the iOS app. The iOS
+project pins the iOS Firebase SDK in `ios/Podfile.lock`.
+
+After installing CocoaPods, run `flutter pub get`, then `pod install` from the
+`ios` folder. Use `flutter devices` to find an iPhone or simulator, then run
+`flutter run -d <device_id>` from the project folder.
+
+The app uses Apple App Check in debug and App Attest with DeviceCheck fallback
+in release. Register the iOS app under Firebase App Check before enabling
+enforcement. For debug builds, register the Apple debug token printed by the
+app in the Firebase Console. Google sign-in also needs the iOS app's reversed
+client ID URL scheme in `ios/Runner/Info.plist`.
 
 ## Verify and build
 
@@ -94,8 +115,8 @@ simulated lock only.
 
 Cloud Firestore access is governed by [`firestore.rules`](firestore.rules),
 which must be deployed to the Firebase project. Client checks are not a
-replacement for those rules. App Check is initialized for Android; a web App
-Check provider still needs configuration for production.
+replacement for those rules. App Check is initialized for Android and iOS; a
+web App Check provider still needs configuration for production.
 
 ## Learn the system
 

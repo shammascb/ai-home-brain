@@ -137,8 +137,8 @@ public internet.
 
 - Authentication is real when Firebase is configured. Firestore rules are the
   cloud authorization boundary and must be deployed and reviewed.
-- Android App Check is initialized in release builds. Web App Check is not
-  configured in this project.
+- Android Play Integrity and iOS App Check are initialized for release builds;
+  debug builds use platform debug providers. Web App Check is not configured.
 - Firestore security rules are exercised against the local emulator by
   `npm --prefix tools/firestore-rules-tests test`. The scenario matrix in
   `firestore.rules.test.ts` is a reference list; the executable assertions are
@@ -155,9 +155,9 @@ public internet.
   to the signed-in account, not the speaker.
 - Notifications and push delivery are not configured. Settings reports that
   state instead of showing a false connected status.
-- Current Firebase setup supports the web client and Android when the local
-  Android Firebase configuration is present. iOS Firebase setup is not
-  included.
+- Current Firebase setup supports the web client, Android when its local
+  configuration is present, and iOS when its local plist is present and App
+  Check is registered in Firebase.
 - Scheduled/time-triggered automations are not implemented; routines run when
   a user starts them.
 
@@ -179,7 +179,7 @@ public internet.
 | Push notifications | Not configured |
 | Speaker verification / voice profiles | Not implemented |
 | Scheduled routines | Not implemented |
-| iOS Firebase setup | Not implemented |
+| iOS Firebase setup | Implemented; local plist and App Check registration required |
 
 ## Build and deployment
 

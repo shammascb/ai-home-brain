@@ -22,41 +22,42 @@ Future<void> main() async {
   FamilyManagementStore? familyStore;
   String? backendMessage;
 
-  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.android) {
-    backendMessage = FirebaseConfig.setupMessage;
-  } else {
-    try {
-      final resolvedConfig = await FirebaseConfig.loadAppletConfig();
-      if (kIsWeb) {
-        await Firebase.initializeApp(options: resolvedConfig.webOptions);
-      } else {
-        await Firebase.initializeApp();
-        await FirebaseAppCheck.instance.activate(
-          providerAndroid: kDebugMode
-              ? const AndroidDebugProvider()
-              : const AndroidPlayIntegrityProvider(),
-        );
-      }
-      final auth = FirebaseAuth.instance;
-      final firestore = FirebaseFirestore.instanceFor(
-        app: Firebase.app(),
-        databaseId: resolvedConfig.firestoreDatabaseId,
+  try {
+    final resolvedConfig = await FirebaseConfig.loadAppletConfig();
+    if (kIsWeb) {
+      await Firebase.initializeApp(options: resolvedConfig.webOptions);
+    } else {
+      // Android reads google-services.json; iOS reads the bundled
+      // GoogleService-Info.plist. Both use the same Firebase project.
+      await Firebase.initializeApp();
+      await FirebaseAppCheck.instance.activate(
+        providerAndroid: kDebugMode
+            ? const AndroidDebugProvider()
+            : const AndroidPlayIntegrityProvider(),
+        providerApple: kDebugMode
+            ? const AppleDebugProvider()
+            : const AppleAppAttestWithDeviceCheckFallbackProvider(),
       );
-      if (kIsWeb) {
-        firestore.settings = const Settings(
-          persistenceEnabled: false,
-          webExperimentalForceLongPolling: true,
-        );
-      }
-      authService = FirebaseAuthService(auth);
-      voiceCommandInterpreter = FirebaseVoiceCommandInterpreter();
-      routineStore = AutomationRoutineStore(firestore: firestore, auth: auth);
-      familyStore = FamilyManagementStore(firestore: firestore, auth: auth);
-    } on FirebaseException catch (error) {
-      backendMessage =
-          'Firebase could not start (${error.code}). Check your project '
-          'configuration and try again.';
     }
+    final auth = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instanceFor(
+      app: Firebase.app(),
+      databaseId: resolvedConfig.firestoreDatabaseId,
+    );
+    if (kIsWeb) {
+      firestore.settings = const Settings(
+        persistenceEnabled: false,
+        webExperimentalForceLongPolling: true,
+      );
+    }
+    authService = FirebaseAuthService(auth);
+    voiceCommandInterpreter = FirebaseVoiceCommandInterpreter();
+    routineStore = AutomationRoutineStore(firestore: firestore, auth: auth);
+    familyStore = FamilyManagementStore(firestore: firestore, auth: auth);
+  } on FirebaseException catch (error) {
+    backendMessage =
+        'Firebase could not start (${error.code}). Check your project '
+        'configuration and try again.';
   }
 
   runApp(
